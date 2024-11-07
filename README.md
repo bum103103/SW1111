@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 
 server/config/database.js 파일에서 MySQL 연결 정보를 본인의 환경에 맞게 수정:
+
 javascriptCopyconst pool = mysql.createPool({
   host: 'localhost',
   user: '본인의_MySQL_사용자명',     // 기본값은 보통 'root'
@@ -29,6 +30,8 @@ javascriptCopyconst pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+
 3. 프로젝트 실행
 개발 모드로 프론트엔드와 백엔드를 동시에 실행:
-bashCopynpm run dev:all
+
+npm run dev:all

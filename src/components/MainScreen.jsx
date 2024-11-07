@@ -7,29 +7,34 @@ const MainScreen = () => {
       type: '1회용 비밀번호 발급하기',
       description: '배달기사, 방문자를 위한 비밀번호 발급',
       icon: <Key className="h-6 w-6 text-blue-500" />,
-      path: '/issue'
+      path: '/issue',
+      enabled: true
     },
     {
       type: '1회용 비밀번호 발급받기',
       description: '등록된 사용자를 위한 비밀번호 수령',
       icon: <Users className="h-6 w-6 text-green-500" />,
-      path: '/receive'
+      path: '/receive',
+      enabled: true
     },
     {
       type: '긴급출동 관리',
       description: '119, 112 긴급출동 시 마스터키 발급',
       icon: <Bell className="h-6 w-6 text-red-500" />,
-      path: '/emergency'
+      path: '/emergency',
+      enabled: false
     },
     {
       type: '출입 기록',
       description: '도어락 사용 이력 조회',
       icon: <Settings className="h-6 w-6 text-gray-500" />,
-      path: '/history'
+      path: '/history',
+      enabled: false
     }
   ];
 
-  const handleItemClick = (path) => {
+  const handleItemClick = (path, enabled) => {
+    if (!enabled) return;
     window.location.href = path;
   };
 
@@ -44,8 +49,10 @@ const MainScreen = () => {
           {menuList.map((item, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer"
-              onClick={() => handleItemClick(item.path)}
+              className={`flex items-center justify-between p-4 ${
+                item.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+              }`}
+              onClick={() => handleItemClick(item.path, item.enabled)}
             >
               <div className="flex items-center gap-4">
                 <div className="p-2 bg-gray-50 rounded-xl">

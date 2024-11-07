@@ -5,11 +5,36 @@ const SignupScreen = () => {
   const [username, setUsername] = useState('');
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
-    // 회원가입 로직 구현
-    console.log('Signup attempt:', { username, nickname, password });
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, nickname, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || '회원가입에 실패했습니다.');
+      }
+
+      setSuccess(true);
+      // 3초 후 로그인 페이지로 이동
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 3000);
+    } catch (error) {
+      setError(error.message);
+    }
   };
 
   return (
@@ -25,6 +50,18 @@ const SignupScreen = () => {
       </div>
       
       <div className="flex-1 flex flex-col justify-center px-8">
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg text-center">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 p-3 bg-green-100 text-green-600 rounded-lg text-center">
+            회원가입이 완료되었습니다. 잠시 후 로그인 페이지로 이동합니다.
+          </div>
+        )}
+
         <form onSubmit={handleSignup} className="space-y-6">
           <div className="space-y-4">
             <div className="flex items-center gap-4 p-3 border rounded-lg">
@@ -35,6 +72,7 @@ const SignupScreen = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="flex-1 outline-none"
+                required
               />
             </div>
 
@@ -46,6 +84,7 @@ const SignupScreen = () => {
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 className="flex-1 outline-none"
+                required
               />
             </div>
             
@@ -57,6 +96,8 @@ const SignupScreen = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="flex-1 outline-none"
+                required
+                minLength={4}
               />
             </div>
           </div>

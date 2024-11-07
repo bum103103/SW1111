@@ -1,7 +1,9 @@
+// server.js
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import authRoutes from './routes/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,7 +13,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// API 라우트는 여기에 추가됩니다
+// 인증 라우트 추가
+app.use('/api/auth', authRoutes);
 
 // 프로덕션 환경에서는 정적 파일 제공
 if (process.env.NODE_ENV === 'production') {

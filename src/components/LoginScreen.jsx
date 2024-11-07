@@ -4,11 +4,36 @@ import { User, Lock } from 'lucide-react';
 const LoginScreen = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // 로그인 로직 구현
-    console.log('Login attempt:', { username, password });
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || '로그인에 실패했습니다.');
+      }
+
+      // 토큰과 사용자 정보 저장
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('nickname', data.nickname);
+
+      // 메인 화면으로 이동
+      window.location.href = '/main';
+    } catch (error) {
+      setError(error.message);
+    }
   };
 
   return (
@@ -18,6 +43,12 @@ const LoginScreen = () => {
       </div>
       
       <div className="flex-1 flex flex-col justify-center px-8">
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg text-center">
+            {error}
+          </div>
+        )}
+        
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-4">
             <div className="flex items-center gap-4 p-3 border rounded-lg">

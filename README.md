@@ -8,6 +8,17 @@ CREATE DATABASE IF NOT EXISTS doorlock_db;
 
 USE doorlock_db;
 
+-- 임시 비밀번호 테이블 
+
+CREATE TABLE temp_passwords (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  password VARCHAR(6) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+
 -- 사용자 테이블 생성
 
 CREATE TABLE IF NOT EXISTS users (

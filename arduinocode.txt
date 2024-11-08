@@ -13,7 +13,7 @@ char keys[ROWS][COLS] = {
   {'*','0','#','D'}
 };
 
-byte rowPins[ROWS] = {6, 7, 8, 9};
+byte rowPins[ROWS] = {9,8,7,6};
 byte colPins[COLS] = {5, 4, 3, 2};
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
@@ -86,7 +86,7 @@ void loop() {
         Serial.println("Access granted!");
         lcd.clear();
         lcd.setCursor(0, 0);
-        lcd.print("Access Granted!");
+        lcd.print("Door Opened!!");
         blinkLED(2);
         delay(1500);
       } else {

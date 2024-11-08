@@ -1,5 +1,8 @@
 # SW1111
  
+모듈 추가 
+npm install axios
+
 
 출력이력 데이터베이스 생성
 

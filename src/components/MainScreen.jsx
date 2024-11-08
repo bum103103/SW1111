@@ -29,13 +29,13 @@ const MainScreen = () => {
       description: '도어락 사용 이력 조회',
       icon: <Settings className="h-6 w-6 text-gray-500" />,
       path: '/history',
-      enabled: false
+      enabled: true
     }
   ];
 
-  const handleItemClick = (path, enabled) => {
-    if (!enabled) return;
-    window.location.href = path;
+  const handleItemClick = (item) => {
+    if (!item.enabled) return;
+    window.location.href = item.path;
   };
 
   return (
@@ -52,7 +52,7 @@ const MainScreen = () => {
               className={`flex items-center justify-between p-4 ${
                 item.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-50 cursor-not-allowed'
               }`}
-              onClick={() => handleItemClick(item.path, item.enabled)}
+              onClick={() => handleItemClick(item)}
             >
               <div className="flex items-center gap-4">
                 <div className="p-2 bg-gray-50 rounded-xl">

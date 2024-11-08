@@ -29,10 +29,21 @@ const connectSerialPort = () => {
       console.error('Serial Port Error:', err.message);
     });
 
-    serialPort.on('data', (data) => {
-        console.log('Received from Arduino:', data.toString());
-        // 필요한 경우 데이터 처리 로직 추가
-      });
+    serialPort.on('data', async (data) => {
+      const response = data.toString().trim();
+      const [lastAccess] = await pool.query(
+        'SELECT user_id FROM temp_passwords ORDER BY created_at DESC LIMIT 1'
+      );
+      
+      if (lastAccess.length > 0) {
+        if (response === 'SUCCESS') {
+          await saveAccessLog(lastAccess[0].user_id, 'SUCCESS');
+        } else if (response === 'FAILED') {
+          await saveAccessLog(lastAccess[0].user_id, 'FAILED');
+        }
+      }
+      console.log('Received from Arduino:', response);
+    });
       
     serialPort.on('open', () => {
       console.log('Serial port is open');
@@ -73,6 +84,18 @@ const sendPasswordToArduino = (password) => {
   });
 };
 
+// 출입 기록 저장 함수
+const saveAccessLog = async (userId, status) => {
+  try {
+    await pool.query(
+      'INSERT INTO access_logs (user_id, status) VALUES (?, ?)',
+      [userId, status]
+    );
+  } catch (error) {
+    console.error('Error saving access log:', error);
+  }
+};
+
 // 비밀번호 발급
 router.post('/issue', async (req, res) => {
   try {
@@ -103,6 +126,9 @@ router.post('/issue', async (req, res) => {
       [user.id, password]
     );
 
+    // 발급 기록 저장
+    await saveAccessLog(user.id, 'ISSUED');
+
     // 아두이노로 비밀번호 전송 시도
     try {
       await sendPasswordToArduino(password);
@@ -126,7 +152,7 @@ router.get('/check', async (req, res) => {
       return res.status(401).json({ message: '인증이 필요합니다.' });
     }
 
-    const decoded = jwt.verify(token, 'your-secret-key'); // JWT_SECRET과 동일한 값 사용
+    const decoded = jwt.verify(token, 'your-secret-key');
     
     const [passwords] = await pool.query(
       'SELECT password FROM temp_passwords WHERE user_id = ?',
@@ -143,5 +169,69 @@ router.get('/check', async (req, res) => {
     res.status(500).json({ message: '서버 오류가 발생했습니다.' });
   }
 });
+
+// 출입 기록 조회 API
+router.get('/access-logs', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+
+    // 모든 사용자의 로그를 가져오도록 수정
+    const [logs] = await pool.query(
+      `SELECT al.id, al.access_time, al.status, u.nickname 
+       FROM access_logs al 
+       LEFT JOIN users u ON al.user_id = u.id 
+       ORDER BY al.access_time DESC 
+       LIMIT 50`
+    );
+
+    console.log('Fetched logs:', logs); // 디버깅용
+
+    res.json({ logs });
+  } catch (error) {
+    console.error('Access logs error:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 테스트용 비밀번호 확인 엔드포인트
+router.post('/test', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+    const { password, testType } = req.body;
+
+    // 현재 사용자의 임시 비밀번호 확인
+    const [passwords] = await pool.query(
+      'SELECT * FROM temp_passwords WHERE user_id = ? AND password = ?',
+      [decoded.id, password]
+    );
+
+    if (passwords.length === 0) {
+      await saveAccessLog(decoded.id, 'FAILED');
+      return res.status(401).json({ message: '잘못된 비밀번호입니다.' });
+    }
+
+    // 테스트 타입에 따라 성공/실패 로그 기록
+    await saveAccessLog(decoded.id, testType);
+    
+    res.json({ 
+      message: testType === 'SUCCESS' ? '성공적으로 열렸습니다.' : '실패했습니다.',
+      status: testType
+    });
+  } catch (error) {
+    console.error('Password test error:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
 
 export default router;

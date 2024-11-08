@@ -11,7 +11,7 @@ let serialPort = null;
 const connectSerialPort = () => {
   try {
     serialPort = new SerialPort({
-      path: 'COM5',
+      path: 'COM6',
       baudRate: 9600,
       autoOpen: false,
       lock: false
@@ -61,15 +61,17 @@ const sendPasswordToArduino = (password) => {
       return;
     }
 
-    serialPort.write(`${password}\n`, (err) => {
-      if (err) {
-        console.error('Error writing to serial port:', err);
-        reject(err);
-      } else {
-        console.log('Password sent to Arduino:', password);
-        resolve();
-      }
-    });
+    // 수정된 서버 코드의 전송 부분
+serialPort.write(`SET_PASSWORD:${password}\n`, (err) => {
+  if (err) {
+    console.error('Error writing to serial port:', err);
+    reject(err);
+  } else {
+    console.log('Password sent to Arduino:', password);
+    resolve();
+  }
+});
+
   });
 };
 

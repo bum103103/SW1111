@@ -10,10 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-app.use(cors({
-  origin: `http://116.124.191.174:15025`,  // 프론트엔드 주소
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // 라우트 추가

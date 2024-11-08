@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: {
@@ -11,19 +11,19 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    strictPort: false,
     host: true,
-    middleware: [
-      (req, res, next) => {
-        // SPA의 client-side routing을 위한 설정
-        if (req.url.includes('/B/')) {
-          req.url = '/'
-        }
-        next()
+    proxy: {
+      '/api': {
+        target: mode === 'production' 
+          ? '/api'  // 프로덕션에서는 같은 도메인 사용
+          : 'http://localhost:5000', // 개발 환경에서는 로컬 서버로
+        changeOrigin: true,
+        secure: false,
       }
-    ]
+    }
   },
-  preview: {
-    port: 5173,
+  build: {
+    outDir: 'dist',
+    sourcemap: false
   }
-})
+}))

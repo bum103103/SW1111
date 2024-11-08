@@ -15,7 +15,7 @@ const ReceivePasswordScreen = () => {
           return;
         }
 
-        const response = await fetch('http://localhost:5000/api/passwords/check', {
+        const response = await fetch('/api/passwords/check', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,

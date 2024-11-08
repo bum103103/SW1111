@@ -12,7 +12,7 @@ const IssuePasswordScreen = () => {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:5000/api/passwords/issue', {
+      const response = await fetch('/api/passwords/issue', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

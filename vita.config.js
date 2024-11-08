@@ -16,7 +16,7 @@ export default defineConfig({
     host: '0.0.0.0',  // 모든 IP에서 접근 가능하도록 설정
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://0.0.0.0:5000',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path

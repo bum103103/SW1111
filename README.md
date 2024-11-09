@@ -37,6 +37,24 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 기록 조회를 위한 뷰 
+
+-- 발급 기록을 위한 뷰 생성
+CREATE VIEW password_issue_logs AS
+SELECT 
+    tp.id,
+    issuer.nickname as issuer_nickname,
+    target.nickname as target_nickname,
+    tp.password,
+    tp.created_at as issued_at,
+    tp.expires_at,
+    tp.used,
+    tp.used_at
+FROM temp_passwords tp
+JOIN users issuer ON tp.issuer_id = issuer.id
+JOIN users target ON tp.target_id = target.id
+ORDER BY tp.created_at DESC;
+
 
 server/config/database.js 파일에서 MySQL 연결 정보를 본인의 환경에 맞게 수정:
 

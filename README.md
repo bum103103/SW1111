@@ -11,21 +11,21 @@ USE doorlock_db;
 -- 임시 비밀번호 테이블 
 
 CREATE TABLE `temp_passwords` (
-    ->   `id` INT NOT NULL AUTO_INCREMENT,
-    ->   `issuer_id` INT NOT NULL,
-    ->   `target_id` INT NOT NULL,
-    ->   `password` VARCHAR(50) NOT NULL,
-    ->   `used` TINYINT(1) NOT NULL DEFAULT 0,
-    ->   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ->   `used_at` DATETIME NULL DEFAULT NULL,
-    ->   `expires_at` DATETIME NOT NULL,
-    ->   PRIMARY KEY (`id`),
-    ->   INDEX `idx_target_id` (`target_id`),
-    ->   INDEX `idx_issuer_id` (`issuer_id`),
-    ->   FOREIGN KEY (`issuer_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-    ->   FOREIGN KEY (`target_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-    -> ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
+  `id` int NOT NULL AUTO_INCREMENT,
+  `issuer_id` int NOT NULL,
+  `target_id` int NOT NULL,
+  `password` varchar(50) NOT NULL,
+  `used` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `used_at` datetime DEFAULT NULL,
+  `expires_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_target_id` (`target_id`),
+  KEY `idx_issuer_id` (`issuer_id`),
+  CONSTRAINT `temp_passwords_ibfk_1` FOREIGN KEY (`issuer_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `temp_passwords_ibfk_2` FOREIGN KEY (`target_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SELECT * FROM doorlock_db.temp_passwords;
 
 -- 사용자 테이블 생성
 
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- 기록 조회를 위한 뷰 
 
 -- 발급 기록을 위한 뷰 생성
+
 CREATE VIEW password_issue_logs AS
 SELECT 
     tp.id,

@@ -1,8 +1,8 @@
 import express from 'express';
 import { SerialPort } from 'serialport';
+import { ReadlineParser } from '@serialport/parser-readline';
 import pool from '../config/database.js';
 import jwt from 'jsonwebtoken';
-import { ReadlineParser } from '@serialport/parser-readline';
 
 const router = express.Router();
 
@@ -35,20 +35,18 @@ const connectSerialPort = () => {
     parser.on('data', async (data) => {
       const message = data.toString().trim();
       console.log('Received from Arduino:', message);
-    
-      if (message.startsWith("PASSWORD_USED:")) {
-        const parts = message.split(':');
-        const password = parts[1] || '';
 
+      if (message.startsWith("PASSWORD_USED:")) {
+        const password = message.substring(14); // 인덱스 수정
         console.log('Password to update:', password);
-    
+
         try {
           // 비밀번호 사용 처리
           const [result] = await pool.query(
             'UPDATE temp_passwords SET used = TRUE, used_at = CURRENT_TIMESTAMP WHERE password = ? AND used = FALSE',
             [password]
           );
-    
+
           if (result.affectedRows > 0) {
             console.log(`Password ${password} marked as used in database`);
           } else {
@@ -59,7 +57,7 @@ const connectSerialPort = () => {
         }
       }
     });
-      
+
     serialPort.on('open', () => {
       console.log('Serial port is open');
     });
@@ -98,17 +96,18 @@ const sendPasswordToArduino = (password) => {
   });
 };
 
+// 비밀번호 발급
 router.post('/issue', async (req, res) => {
   try {
     const { nickname } = req.body;
     const token = req.headers.authorization?.split(' ')[1];
-    
+
     if (!token) {
       return res.status(401).json({ message: '인증이 필요합니다.' });
     }
 
     const decoded = jwt.verify(token, 'your-secret-key');
-    
+
     // 닉네임으로 대상 사용자 확인
     const [targetUsers] = await pool.query(
       'SELECT * FROM users WHERE nickname = ?',
@@ -126,32 +125,29 @@ router.post('/issue', async (req, res) => {
       return res.status(400).json({ message: '자신에게는 임시 비밀번호를 발급할 수 없습니다.' });
     }
 
-    // 현재 활성화된 비밀번호 확인 (발급자 기준)
-    const [existingPasswords] = await pool.query(
-      'SELECT COUNT(*) as count FROM temp_passwords WHERE target_id = ? AND issuer_id = ? AND used = FALSE',
-      [targetUser.id, decoded.id]
-    );
-
-    if (existingPasswords[0].count > 0) {
-      return res.status(400).json({ message: '이미 해당 사용자에게 발급된 비밀번호가 있습니다.' });
-    }
-
-    // 현재 활성화된 전체 비밀번호 개수 확인
+    // 현재 대상 사용자에게 사용되지 않은 비밀번호 수 확인
     const [activePasswords] = await pool.query(
-      'SELECT COUNT(*) as count FROM temp_passwords WHERE target_id = ? AND used = FALSE',
+      `SELECT COUNT(*) as count 
+       FROM temp_passwords 
+       WHERE target_id = ? 
+       AND used = FALSE 
+       AND expires_at > NOW()`,
       [targetUser.id]
     );
 
-    if (activePasswords[0].count >= 10) {
-      return res.status(400).json({ message: '최대 발급 가능한 비밀번호 개수를 초과했습니다.' });
+    if (activePasswords[0].count > 0) {
+      return res.status(400).json({ 
+        message: '해당 사용자에게 이미 유효한 비밀번호가 발급되어 있습니다.' 
+      });
     }
 
     const password = generatePassword();
+    const expiresAt = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3시간 후
 
     // 새 비밀번호 저장
     await pool.query(
-      'INSERT INTO temp_passwords (issuer_id, target_id, password) VALUES (?, ?, ?)',
-      [decoded.id, targetUser.id, password]
+      'INSERT INTO temp_passwords (issuer_id, target_id, password, expires_at) VALUES (?, ?, ?, ?)',
+      [decoded.id, targetUser.id, password, expiresAt]
     );
 
     // 아두이노로 비밀번호 전송 시도
@@ -177,27 +173,16 @@ router.get('/check', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, 'your-secret-key');
-    
-    // 사용되지 않은 비밀번호만 조회하도록 수정
+
+    // 사용되지 않았고 만료되지 않은 비밀번호만 조회
     const [passwords] = await pool.query(
       `SELECT tp.*, u.nickname as issuer_nickname 
        FROM temp_passwords tp 
        JOIN users u ON tp.issuer_id = u.id 
-       WHERE tp.target_id = ? AND tp.used = FALSE 
+       WHERE tp.target_id = ? AND tp.used = FALSE AND tp.expires_at > NOW()
        ORDER BY tp.created_at DESC`,
       [decoded.id]
     );
-
-    // 조회된 각 비밀번호를 아두이노에 전송
-    for (const pwd of passwords) {
-      try {
-        await sendPasswordToArduino(pwd.password);
-        // 아두이노로부터 확인 응답을 기다림
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error) {
-        console.error('Failed to send password to Arduino:', error);
-      }
-    }
 
     res.json({
       passwords: passwords.map(row => ({
@@ -212,12 +197,19 @@ router.get('/check', async (req, res) => {
   }
 });
 
-// 30일 이상 된 사용된 비밀번호 정리
+// 사용된 비밀번호 및 만료된 비밀번호 정리
 router.post('/cleanup', async (req, res) => {
   try {
+    // 30일 이상 된 사용된 비밀번호 삭제
     await pool.query(
       'DELETE FROM temp_passwords WHERE used = TRUE AND used_at < DATE_SUB(NOW(), INTERVAL 30 DAY)'
     );
+
+    // 만료된 비밀번호를 사용된 것으로 처리
+    await pool.query(
+      'UPDATE temp_passwords SET used = TRUE WHERE used = FALSE AND expires_at <= NOW()'
+    );
+
     res.json({ success: true });
   } catch (error) {
     console.error('Cleanup error:', error);

@@ -5,11 +5,11 @@ const IssueHistoryScreen = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all'); // 'all', 'active', 'used', 'expired'
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     fetchHistory();
-  }, [filter]);
+  }, [filter]); // filter가 변경될 때마다 데이터를 다시 불러옴
 
   const fetchHistory = async () => {
     try {
@@ -20,31 +20,49 @@ const IssueHistoryScreen = () => {
         }
       });
       const data = await response.json();
-      setHistory(data.history);
+      setHistory(data.history || []);
     } catch (error) {
       console.error('Error fetching history:', error);
+      setHistory([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (item) => {
-    if (item.used) return 'text-red-500';
-    if (new Date(item.expires_at) <= new Date()) return 'text-orange-500';
-    return 'text-green-500';
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'used':
+        return 'text-red-500';
+      case 'expired':
+        return 'text-orange-500';
+      case 'active':
+        return 'text-green-500';
+      default:
+        return 'text-gray-500';
+    }
   };
 
-  const getStatusText = (item) => {
-    if (item.used) return '사용됨';
-    if (new Date(item.expires_at) <= new Date()) return '만료됨';
-    return '미사용';
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'used':
+        return '사용됨';
+      case 'expired':
+        return '만료됨';
+      case 'active':
+        return '미사용';
+      default:
+        return '알 수 없음';
+    }
   };
 
-  const filteredHistory = history.filter(item => 
-    item.issuer_nickname?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    item.target_nickname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.password.includes(searchTerm)
-  );
+  const filteredHistory = history.filter(item => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      item.issuer_nickname?.toLowerCase().includes(searchLower) ||
+      item.target_nickname?.toLowerCase().includes(searchLower) ||
+      item.password?.includes(searchLower)
+    );
+  });
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -97,30 +115,33 @@ const IssueHistoryScreen = () => {
           <div className="text-center text-gray-500">로딩 중...</div>
         ) : (
           <div className="space-y-4">
-            {filteredHistory.map((item) => (
-              <div key={item.id} className="bg-white rounded-lg border p-4 space-y-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-medium">{item.password}</div>
-                    <div className="text-sm text-gray-500">
-                      발급자: {item.issuer_nickname} → 대상: {item.target_nickname}
+            {filteredHistory.length > 0 ? (
+              filteredHistory.map((item, index) => (
+                <div key={item.id || index} className="bg-white rounded-lg border p-4 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-medium">{item.password}</div>
+                      <div className="text-sm text-gray-500">
+                        발급자: {item.issuer_nickname} → 대상: {item.target_nickname}
+                      </div>
+                    </div>
+                    <div className={`text-sm ${getStatusColor(item.status)}`}>
+                      {getStatusText(item.status)}
                     </div>
                   </div>
-                  <div className={`text-sm ${getStatusColor(item)}`}>
-                    {getStatusText(item)}
+                  <div className="text-xs text-gray-400 space-y-1">
+                    <div>발급: {formatDate(item.created_at)}</div>
+                    <div>만료: {formatDate(item.expires_at)}</div>
+                    {item.used && (
+                      <div>사용: {formatDate(item.used_at)}</div>
+                    )}
                   </div>
                 </div>
-                <div className="text-xs text-gray-400 space-y-1">
-                  <div>발급: {formatDate(item.created_at)}</div>
-                  <div>만료: {formatDate(item.expires_at)}</div>
-                  {item.used && (
-                    <div>사용: {formatDate(item.used_at)}</div>
-                  )}
-                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500">
+                {searchTerm ? '검색 결과가 없습니다.' : '기록이 없습니다.'}
               </div>
-            ))}
-            {filteredHistory.length === 0 && (
-              <div className="text-center text-gray-500">기록이 없습니다.</div>
             )}
           </div>
         )}

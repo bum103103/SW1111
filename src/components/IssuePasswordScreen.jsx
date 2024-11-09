@@ -76,7 +76,7 @@ const IssuePasswordScreen = () => {
         <form onSubmit={handleSubmit} className="space-y-6 max-w-md w-full mx-auto">
           <div>
             <label className="block text-base font-medium text-gray-700 mb-2">
-              사용자 닉네임
+              대상자 닉네임
             </label>
             <input
               type="text"

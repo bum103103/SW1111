@@ -217,4 +217,74 @@ router.post('/cleanup', async (req, res) => {
   }
 });
 
+// 발급 기록 조회 API
+router.get('/history', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+    
+    const [history] = await pool.query(
+      `SELECT 
+         tp.id,
+         tp.password,
+         tp.created_at as issued_at,
+         tp.expires_at,
+         tp.used,
+         tp.used_at,
+         issuer.nickname as issuer_nickname,
+         target.nickname as target_nickname
+       FROM temp_passwords tp
+       JOIN users issuer ON tp.issuer_id = issuer.id
+       JOIN users target ON tp.target_id = target.id
+       WHERE tp.issuer_id = ? OR tp.target_id = ?
+       ORDER BY tp.created_at DESC
+       LIMIT 100`,
+      [decoded.id, decoded.id]
+    );
+
+    res.json({ history });
+  } catch (error) {
+    console.error('History fetch error:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// access-history 라우트도 같은 방식으로 수정
+router.get('/access-history', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+    
+    const [history] = await pool.query(
+      `SELECT 
+         tp.id,
+         tp.password,
+         tp.created_at as issued_at,
+         tp.used_at,
+         issuer.nickname as issuer_nickname,
+         target.nickname as user_nickname
+       FROM temp_passwords tp
+       JOIN users issuer ON tp.issuer_id = issuer.id
+       JOIN users target ON tp.target_id = target.id
+       WHERE (tp.issuer_id = ? OR tp.target_id = ?)
+       AND tp.used = TRUE
+       ORDER BY tp.used_at DESC
+       LIMIT 100`,
+      [decoded.id, decoded.id]
+    );
+
+    res.json({ history });
+  } catch (error) {
+    console.error('Access history fetch error:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
 export default router;

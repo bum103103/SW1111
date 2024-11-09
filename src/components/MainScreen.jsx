@@ -1,5 +1,5 @@
 import React from 'react';
-import { Key, Users, Bell, Settings, ChevronRight } from 'lucide-react';
+import { Key, Users, Bell, Settings, History, ChevronRight } from 'lucide-react';
 
 const MainScreen = () => {
   const menuList = [
@@ -18,18 +18,18 @@ const MainScreen = () => {
       enabled: true
     },
     {
-      type: '긴급출동 관리',
-      description: '119, 112 긴급출동 시 마스터키 발급',
-      icon: <Bell className="h-6 w-6 text-red-500" />,
-      path: '/emergency',
-      enabled: false
+      type: '발급 기록',
+      description: '비밀번호 발급 내역 조회',
+      icon: <History className="h-6 w-6 text-purple-500" />,
+      path: '/issue-history',
+      enabled: true
     },
     {
       type: '출입 기록',
       description: '도어락 사용 이력 조회',
       icon: <Settings className="h-6 w-6 text-gray-500" />,
-      path: '/history',
-      enabled: false
+      path: '/access-history',
+      enabled: true
     }
   ];
 

@@ -13,13 +13,14 @@ char keys[ROWS][COLS] = {
   {'*','0','#','D'}
 };
 
-byte rowPins[ROWS] = {9,8,7,6};
+byte rowPins[ROWS] = {9, 8, 7, 6};
 byte colPins[COLS] = {5, 4, 3, 2};
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 String masterPassword = "1234";
-String currentTempPassword = "";
+String tempPasswords[10]; // 최대 10개의 임시 비밀번호 저장
+int tempPasswordCount = 0;
 String inputPassword = "";
 const int LED_PIN = 13;
 
@@ -38,7 +39,7 @@ void setup() {
 
 void clearInputDisplay() {
   lcd.setCursor(0, 1);
-  lcd.print("                "); // 16개의 공백으로 두 번째 줄 지우기
+  lcd.print("                ");
   lcd.setCursor(0, 1);
 }
 
@@ -50,21 +51,33 @@ void loop() {
     if (received.startsWith("SET_PASSWORD:")) {
       String newPassword = received.substring(13);
       if (newPassword.length() == 6) {
-        currentTempPassword = newPassword;
-        Serial.println("New temp password set: " + currentTempPassword);
+        // 비밀번호 배열에 추가
+        bool alreadyExists = false;
+        for (int i = 0; i < tempPasswordCount; i++) {
+          if (tempPasswords[i] == newPassword) {
+            alreadyExists = true;
+            break;
+          }
+        }
         
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("New Pass Set!");
-        lcd.setCursor(0, 1);
-        lcd.print(currentTempPassword);
-        delay(1000);
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Password:");
-        clearInputDisplay();
-        
-        blinkLED(3);
+        if (!alreadyExists && tempPasswordCount < 10) {
+          tempPasswords[tempPasswordCount] = newPassword;
+          tempPasswordCount++;
+          Serial.println("NEW_PASSWORD_ADDED:" + newPassword);
+          
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("New Pass Set!");
+          lcd.setCursor(0, 1);
+          lcd.print(newPassword);
+          delay(1000);
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Password:");
+          clearInputDisplay();
+          
+          blinkLED(3);
+        }
       }
     }
   }
@@ -72,55 +85,69 @@ void loop() {
   char key = keypad.getKey();
   
   if (key) {
-    Serial.print("Key pressed: ");
-    Serial.println(key);
-    
-    if (key == 'D') { // D를 확인 키로 사용
-      // 비밀번호 확인
-      Serial.print("Checking password: ");
-      Serial.println(inputPassword);
+    if (key == 'D') {
+      bool accessGranted = false;
+      String usedPassword = "";
       
-      // 마스터 비밀번호 또는 임시 비밀번호 확인
-      if (inputPassword == masterPassword || 
-          (currentTempPassword.length() > 0 && inputPassword == currentTempPassword)) {
-        Serial.println("Access granted!");
+      // 마스터 비밀번호 확인
+      if (inputPassword == masterPassword) {
+        accessGranted = true;
+      } else {
+        // 임시 비밀번호 확인
+        for (int i = 0; i < tempPasswordCount; i++) {
+          if (inputPassword == tempPasswords[i]) {
+            accessGranted = true;
+            usedPassword = tempPasswords[i];
+            
+            // 사용된 비밀번호 제거 및 배열 정리
+            for (int j = i; j < tempPasswordCount - 1; j++) {
+              tempPasswords[j] = tempPasswords[j + 1];
+            }
+            tempPasswordCount--;
+
+            // 서버에 비밀번호 사용 알림
+            Serial.println("PASSWORD_USED:" + usedPassword);
+            break;
+          }
+        }
+      }
+      
+      if (accessGranted) {
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("Door Opened!!");
         blinkLED(2);
         delay(1500);
       } else {
-        Serial.println("Access denied!");
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("Access Denied!");
+        Serial.println("ACCESS_DENIED:" + inputPassword);
         blinkLED(1);
         delay(1500);
       }
       
-      // 입력 초기화 및 디스플레이 재설정
       inputPassword = "";
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Password:");
       clearInputDisplay();
+    
       
-    } else if (key == 'C') { // C를 지우기 키로 사용
+    } else if (key == 'C') {
       inputPassword = "";
       Serial.println("Input cleared");
       clearInputDisplay();
     } else if (key == 'A' || key == 'B' || key == '#' || key == '*') {
-      // A, B, #, * 키는 무시
+      // 무시
     } else {
-      // 숫자 키 입력 처리
       inputPassword += key;
       Serial.print("Current input: ");
       Serial.println(inputPassword);
       
-      // LCD에 입력 표시 (이제 숫자 그대로 표시)
       clearInputDisplay();
       lcd.setCursor(0, 1);
-      lcd.print(inputPassword);  // '*' 대신 실제 숫자 표시
+      lcd.print(inputPassword);
     }
   }
 }

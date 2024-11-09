@@ -12,10 +12,18 @@ const IssuePasswordScreen = () => {
     setResult(null);
 
     try {
+      // localStorage에서 token 가져오기
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = '/'; // 토큰이 없으면 로그인 페이지로 리다이렉트
+        return;
+      }
+
       const response = await fetch('/api/passwords/issue', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // 토큰을 헤더에 추가
         },
         body: JSON.stringify({ nickname }),
       });
@@ -43,6 +51,14 @@ const IssuePasswordScreen = () => {
       setIsLoading(false);
     }
   };
+
+  // 로그인 체크
+  React.useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/';
+    }
+  }, []);
 
   return (
     <div className="min-h-screen w-full md:w-1/2 mx-auto bg-white flex flex-col">

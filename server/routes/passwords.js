@@ -1,3 +1,5 @@
+//routes/password.js
+
 import express from 'express';
 import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
@@ -217,24 +219,20 @@ router.post('/issue', async (req, res) => {
   }
 });
 
-// 발급된 비밀번호 확인
-router.get('/check', async (req, res) => {
+/// routes/password.js 수정
+// 비밀번호 확인 라우트 수정
+router.get('/check/:userId', async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '인증이 필요합니다.' });
-    }
-
-    const decoded = jwt.verify(token, 'your-secret-key');
-
-    // 사용되지 않았고 만료되지 않은 비밀번호만 조회
+    const userId = req.params.userId;
+    
+    // 사용되지 않았고 만료되지 않은 비밀번호 조회
     const [passwords] = await pool.query(
       `SELECT tp.*, u.nickname as issuer_nickname 
        FROM temp_passwords tp 
        JOIN users u ON tp.issuer_id = u.id 
        WHERE tp.target_id = ? AND tp.used = FALSE AND tp.expires_at > NOW()
        ORDER BY tp.created_at DESC`,
-      [decoded.id]
+      [userId]
     );
 
     res.json({

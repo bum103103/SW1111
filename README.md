@@ -37,7 +37,17 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 기록 조회를 위한 뷰 
+-- 실패 기록 조회를 위한 테이블 
+
+
+CREATE TABLE `failed_attempts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `attempted_password` varchar(6) DEFAULT NULL,
+  `attempt_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
 
 -- 발급 기록을 위한 뷰 생성
 

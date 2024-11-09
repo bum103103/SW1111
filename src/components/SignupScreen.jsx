@@ -31,7 +31,7 @@ const SignupScreen = () => {
       // 3초 후 로그인 페이지로 이동
       setTimeout(() => {
         window.location.href = '/';
-      }, 3000);
+      }, 1000);
     } catch (error) {
       setError(error.message);
     }

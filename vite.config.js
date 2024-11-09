@@ -1,36 +1,57 @@
+// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+plugins: [react()],
+resolve: {
+  alias: {
+    '@': path.resolve(__dirname, './src'),
   },
-  server: {
-    port: 5173,
-    host: true,
-    proxy: {
-      '/api': {
-        target: mode === 'production' 
-          ? '/api'  // 프로덕션에서는 같은 도메인 사용
-          : 'http://localhost:5000', // 개발 환경에서는 로컬 서버로
-        changeOrigin: true,
-        secure: false,
-      },
-      '/ws': {  // WebSocket 프록시 설정 추가
-        target: mode === 'production'
-          ? 'ws://localhost:5000'
-          : 'ws://localhost:5000',
-        ws: true,
-        changeOrigin: true
-      }
+},
+server: {
+  port: 6173,
+  host: true,
+  proxy: {
+    '/api': {
+      target: 'http://localhost:8080',
+      changeOrigin: true,
+      secure: false,
+      ws: false,
+      rewrite: (path) => path.replace(/^\/api/, '')
+    },
+    '/ws': {
+      target: 'ws://localhost:8080',
+      ws: true,
+      changeOrigin: true,
+      secure: false,
+      rewrite: (path) => path.replace(/^\/ws/, '')
     }
   },
-  build: {
-    outDir: 'dist',
-    sourcemap: false
+  cors: {
+    origin: ['http://localhost:6173', 'http://localhost:8080'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
   }
+},
+build: {
+  outDir: 'dist',
+  sourcemap: false,
+  rollupOptions: {
+    output: {
+      manualChunks: {
+        vendor: ['react', 'react-dom', 'react-router-dom'],
+      }
+    }
+  }
+},
+optimizeDeps: {
+  include: ['react', 'react-dom', 'react-router-dom']
+},
+preview: {
+  port: 6173,
+  host: true
+}
 }))

@@ -1,4 +1,3 @@
-// src/components/IssueHistoryScreen.jsx
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Search } from 'lucide-react';
 
@@ -6,15 +5,16 @@ const IssueHistoryScreen = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState('all'); // 'all', 'active', 'used', 'expired'
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [filter]);
 
   const fetchHistory = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/passwords/history', {
+      const response = await fetch(`/api/passwords/history?filter=${filter}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -28,10 +28,33 @@ const IssueHistoryScreen = () => {
     }
   };
 
+  const getStatusColor = (item) => {
+    if (item.used) return 'text-red-500';
+    if (new Date(item.expires_at) <= new Date()) return 'text-orange-500';
+    return 'text-green-500';
+  };
+
+  const getStatusText = (item) => {
+    if (item.used) return '사용됨';
+    if (new Date(item.expires_at) <= new Date()) return '만료됨';
+    return '미사용';
+  };
+
   const filteredHistory = history.filter(item => 
     item.issuer_nickname?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    item.target_nickname?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.target_nickname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.password.includes(searchTerm)
   );
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return '';
+    }
+  };
 
   return (
     <div className="min-h-screen w-full md:w-1/2 mx-auto bg-white flex flex-col">
@@ -45,17 +68,28 @@ const IssueHistoryScreen = () => {
         <h1 className="text-2xl font-semibold text-center flex-1">발급 기록</h1>
       </div>
 
-      <div className="p-4">
+      <div className="p-4 space-y-4">
         <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
           <Search className="h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="발급자 또는 대상자 검색..."
+            placeholder="발급자, 대상자 또는 비밀번호로 검색..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-transparent flex-1 outline-none text-sm"
           />
         </div>
+
+        <select 
+          value={filter} 
+          onChange={(e) => setFilter(e.target.value)}
+          className="w-full p-2 border rounded-lg"
+        >
+          <option value="all">전체</option>
+          <option value="active">미사용</option>
+          <option value="used">사용됨</option>
+          <option value="expired">만료됨</option>
+        </select>
       </div>
       
       <div className="flex-1 overflow-y-auto p-4">
@@ -72,15 +106,15 @@ const IssueHistoryScreen = () => {
                       발급자: {item.issuer_nickname} → 대상: {item.target_nickname}
                     </div>
                   </div>
-                  <div className={`text-sm ${item.used ? 'text-red-500' : 'text-green-500'}`}>
-                    {item.used ? '사용됨' : '미사용'}
+                  <div className={`text-sm ${getStatusColor(item)}`}>
+                    {getStatusText(item)}
                   </div>
                 </div>
                 <div className="text-xs text-gray-400 space-y-1">
-                  <div>발급: {new Date(item.issued_at).toLocaleString()}</div>
-                  <div>만료: {new Date(item.expires_at).toLocaleString()}</div>
+                  <div>발급: {formatDate(item.created_at)}</div>
+                  <div>만료: {formatDate(item.expires_at)}</div>
                   {item.used && (
-                    <div>사용: {new Date(item.used_at).toLocaleString()}</div>
+                    <div>사용: {formatDate(item.used_at)}</div>
                   )}
                 </div>
               </div>

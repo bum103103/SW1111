@@ -6,6 +6,7 @@ import IssuePasswordScreen from './components/IssuePasswordScreen';
 import ReceivePasswordScreen from './components/ReceivePasswordScreen';
 import IssueHistoryScreen from './components/IssueHistoryScreen';
 import AccessHistoryScreen from './components/AccessHistoryScreen';
+import PasswordManagementScreen from './components/PasswordManagementScreen';
 
 const App = () => {
   const path = window.location.pathname;
@@ -24,6 +25,8 @@ const App = () => {
         return <IssueHistoryScreen />;
       case '/access-history':
         return <AccessHistoryScreen />;
+      case '/password-management':
+        return <PasswordManagementScreen/>;
       case '/':
         return <LoginScreen />;
       default:

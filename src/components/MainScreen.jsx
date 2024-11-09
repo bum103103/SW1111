@@ -18,6 +18,13 @@ const MainScreen = () => {
       enabled: true
     },
     {
+      type: '비밀번호 관리',
+      description: '발급한 비밀번호 조회 및 관리',
+      icon: <Key className="h-6 w-6 text-orange-500" />,
+      path: '/password-management',
+      enabled: true
+    },
+    {
       type: '발급 기록',
       description: '비밀번호 발급 내역 조회',
       icon: <History className="h-6 w-6 text-purple-500" />,

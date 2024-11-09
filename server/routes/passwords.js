@@ -35,18 +35,18 @@ const connectSerialPort = () => {
     parser.on('data', async (data) => {
       const message = data.toString().trim();
       console.log('Received from Arduino:', message);
-
+    
       if (message.startsWith("PASSWORD_USED:")) {
-        const password = message.substring(14); // 인덱스 수정
+        const password = message.substring(14);
         console.log('Password to update:', password);
-
+    
         try {
-          // 비밀번호 사용 처리
+          // 기존 코드와 동일: 비밀번호 사용 처리
           const [result] = await pool.query(
             'UPDATE temp_passwords SET used = TRUE, used_at = CURRENT_TIMESTAMP WHERE password = ? AND used = FALSE',
             [password]
           );
-
+    
           if (result.affectedRows > 0) {
             console.log(`Password ${password} marked as used in database`);
           } else {
@@ -54,6 +54,17 @@ const connectSerialPort = () => {
           }
         } catch (error) {
           console.error('Error updating password status:', error);
+        }
+      } else if (message.startsWith("ACCESS_DENIED:")) {
+        const failedPassword = message.substring(14);
+        try {
+          // 실패 시도만 기록
+          await pool.query(
+            'INSERT INTO failed_attempts (attempted_password) VALUES (?)',
+            [failedPassword]
+          );
+        } catch (error) {
+          console.error('Error logging failed attempt:', error);
         }
       }
     });
@@ -217,7 +228,6 @@ router.post('/cleanup', async (req, res) => {
   }
 });
 
-// 발급 기록 조회 API
 router.get('/history', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -225,27 +235,35 @@ router.get('/history', async (req, res) => {
       return res.status(401).json({ message: '인증이 필요합니다.' });
     }
 
-    const decoded = jwt.verify(token, 'your-secret-key');
+    jwt.verify(token, 'your-secret-key'); // 토큰 유효성만 검증
+    const filter = req.query.filter || 'all';
     
-    const [history] = await pool.query(
-      `SELECT 
-         tp.id,
-         tp.password,
-         tp.created_at as issued_at,
-         tp.expires_at,
-         tp.used,
-         tp.used_at,
-         issuer.nickname as issuer_nickname,
-         target.nickname as target_nickname
-       FROM temp_passwords tp
-       JOIN users issuer ON tp.issuer_id = issuer.id
-       JOIN users target ON tp.target_id = target.id
-       WHERE tp.issuer_id = ? OR tp.target_id = ?
-       ORDER BY tp.created_at DESC
-       LIMIT 100`,
-      [decoded.id, decoded.id]
-    );
+    let query = `
+      SELECT tp.*, 
+             issuer.nickname as issuer_nickname,
+             target.nickname as target_nickname,
+             CASE 
+               WHEN tp.used = TRUE THEN 'used'
+               WHEN tp.expires_at <= NOW() THEN 'expired'
+               ELSE 'active'
+             END as status
+      FROM temp_passwords tp
+      JOIN users issuer ON tp.issuer_id = issuer.id
+      JOIN users target ON tp.target_id = target.id
+    `;
 
+    // 필터 조건 수정
+    if (filter === 'active') {
+      query += ' WHERE tp.used = FALSE AND tp.expires_at > NOW()';
+    } else if (filter === 'used') {
+      query += ' WHERE tp.used = TRUE';
+    } else if (filter === 'expired') {
+      query += ' WHERE tp.used = FALSE AND tp.expires_at <= NOW()';
+    }
+
+    query += ' ORDER BY tp.created_at DESC LIMIT 100';
+
+    const [history] = await pool.query(query);
     res.json({ history });
   } catch (error) {
     console.error('History fetch error:', error);
@@ -253,8 +271,70 @@ router.get('/history', async (req, res) => {
   }
 });
 
-// access-history 라우트도 같은 방식으로 수정
+// access-history 라우트 수정
 router.get('/access-history', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    jwt.verify(token, 'your-secret-key'); // 토큰 유효성만 검증
+    const filter = req.query.filter || 'all';
+    
+    let history = [];
+
+    if (filter === 'all' || filter === 'success') {
+      // 성공한 출입 기록 조회 - 조건 제거
+      const [successLogs] = await pool.query(
+        `SELECT 
+           tp.password as attempted_password,
+           tp.created_at,
+           tp.used_at,
+           'success' as type,
+           issuer.nickname as issuer_nickname,
+           target.nickname as user_nickname
+         FROM temp_passwords tp
+         JOIN users issuer ON tp.issuer_id = issuer.id
+         JOIN users target ON tp.target_id = target.id
+         WHERE tp.used = TRUE
+         ORDER BY tp.used_at DESC
+         LIMIT 100`
+      );
+      history = [...history, ...successLogs];
+    }
+
+    if (filter === 'all' || filter === 'fail') {
+      // 실패한 시도 기록 조회
+      const [failLogs] = await pool.query(
+        `SELECT 
+           id,
+           attempted_password,
+           attempt_time,
+           'fail' as type
+         FROM failed_attempts
+         ORDER BY attempt_time DESC
+         LIMIT 100`
+      );
+      history = [...history, ...failLogs];
+    }
+
+    // 시간순 정렬
+    history.sort((a, b) => {
+      const timeA = a.type === 'success' ? new Date(a.used_at) : new Date(a.attempt_time);
+      const timeB = b.type === 'success' ? new Date(b.used_at) : new Date(b.attempt_time);
+      return timeB - timeA;
+    });
+
+    res.json({ history });
+  } catch (error) {
+    console.error('Access history fetch error:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 비밀번호 수동 만료
+router.post('/expire/:id', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
@@ -263,28 +343,69 @@ router.get('/access-history', async (req, res) => {
 
     const decoded = jwt.verify(token, 'your-secret-key');
     
-    const [history] = await pool.query(
-      `SELECT 
-         tp.id,
-         tp.password,
-         tp.created_at as issued_at,
-         tp.used_at,
-         issuer.nickname as issuer_nickname,
-         target.nickname as user_nickname
-       FROM temp_passwords tp
-       JOIN users issuer ON tp.issuer_id = issuer.id
-       JOIN users target ON tp.target_id = target.id
-       WHERE (tp.issuer_id = ? OR tp.target_id = ?)
-       AND tp.used = TRUE
-       ORDER BY tp.used_at DESC
-       LIMIT 100`,
-      [decoded.id, decoded.id]
+    // 자신이 발급한 비밀번호인지 확인
+    const [passwords] = await pool.query(
+      'SELECT * FROM temp_passwords WHERE id = ? AND issuer_id = ?',
+      [req.params.id, decoded.id]
     );
 
-    res.json({ history });
+    if (passwords.length === 0) {
+      return res.status(404).json({ message: '비밀번호를 찾을 수 없거나 권한이 없습니다.' });
+    }
+
+    // 만료 처리
+    await pool.query(
+      'UPDATE temp_passwords SET expires_at = NOW() WHERE id = ?',
+      [req.params.id]
+    );
+
+    // 아두이노에 만료된 비밀번호 알림
+    if (serialPort && serialPort.isOpen) {
+      serialPort.write(`EXPIRE_PASSWORD:${passwords[0].password}\n`, (err) => {
+        if (err) {
+          console.error('Error sending expire command to Arduino:', err);
+        }
+      });
+    }
+
+    res.json({ success: true });
   } catch (error) {
-    console.error('Access history fetch error:', error);
+    console.error('Error expiring password:', error);
     res.status(500).json({ message: '서버 오류가 발생했습니다.' });
   }
 });
+
+// 발급한 비밀번호 조회 수정
+router.get('/issued-by-me', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+    
+    const [passwords] = await pool.query(
+      `SELECT 
+         tp.*, 
+         u.nickname as target_nickname,
+         CASE 
+           WHEN tp.used = TRUE THEN 'used'
+           WHEN tp.expires_at <= NOW() THEN 'expired'
+           ELSE 'active'
+         END as status
+       FROM temp_passwords tp
+       JOIN users u ON tp.target_id = u.id
+       WHERE tp.issuer_id = ?
+       ORDER BY tp.created_at DESC`,
+      [decoded.id]
+    );
+
+    res.json({ passwords });
+  } catch (error) {
+    console.error('Error fetching issued passwords:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

@@ -1,7 +1,15 @@
 import React from 'react';
 import { Key, Users, Bell, Settings, History, ChevronRight } from 'lucide-react';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const MainScreen = () => {
+  const { notifications, unreadCount } = useNotifications();
+  
+  // 읽지 않은 비밀번호 발급 알림 수 계산
+  const unreadPasswordCount = notifications.filter(
+    n => n.type === 'password_issued' && !n.read_at
+  ).length;
+
   const menuList = [
     {
       type: '1회용 비밀번호 발급하기',
@@ -13,7 +21,16 @@ const MainScreen = () => {
     {
       type: '1회용 비밀번호 발급받기',
       description: '등록된 사용자를 위한 비밀번호 수령',
-      icon: <Users className="h-6 w-6 text-green-500" />,
+      icon: (
+        <div className="relative">
+          <Users className="h-6 w-6 text-green-500" />
+          {unreadPasswordCount > 0 && (
+            <span className="absolute -top-2 -right-2 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">
+              {unreadPasswordCount}
+            </span>
+          )}
+        </div>
+      ),
       path: '/receive',
       enabled: true
     },
@@ -47,8 +64,19 @@ const MainScreen = () => {
 
   return (
     <div className="min-h-screen w-full md:w-1/2 mx-auto bg-white flex flex-col">
-      <div className="px-4 py-6 border-b">
-        <h1 className="text-2xl font-semibold text-center">메인화면</h1>
+      <div className="px-4 py-6 border-b flex justify-between items-center">
+        <h1 className="text-2xl font-semibold text-center flex-1">메인화면</h1>
+        <button 
+          onClick={() => window.location.href = '/notifications'}
+          className="relative p-2"
+        >
+          <Bell className="h-6 w-6 text-gray-600" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+              {unreadCount}
+            </span>
+          )}
+        </button>
       </div>
       
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>

@@ -19,6 +19,13 @@ export default defineConfig(({ mode }) => ({
           : 'http://localhost:5000', // 개발 환경에서는 로컬 서버로
         changeOrigin: true,
         secure: false,
+      },
+      '/ws': {  // WebSocket 프록시 설정 추가
+        target: mode === 'production'
+          ? 'ws://localhost:5000'
+          : 'ws://localhost:5000',
+        ws: true,
+        changeOrigin: true
       }
     }
   },

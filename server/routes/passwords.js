@@ -3,13 +3,33 @@ import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
 import pool from '../config/database.js';
 import jwt from 'jsonwebtoken';
+import { wsService } from '../services/websocket.js';
 
 const router = express.Router();
 
 let serialPort = null;
 
-// 시리얼 포트 연결 함수
-const connectSerialPort = () => {
+// 알림 생성 함수
+const createNotification = async (userId, type, title, message, relatedPassword = null) => {
+  const [result] = await pool.query(
+    `INSERT INTO notifications (user_id, type, title, message, related_password)
+     VALUES (?, ?, ?, ?, ?)`,
+    [userId, type, title, message, relatedPassword]
+  );
+
+  const [[notification]] = await pool.query(
+    'SELECT * FROM notifications WHERE id = ?',
+    [result.insertId]
+  );
+
+  // WebSocket을 통해 실시간 알림 전송
+  wsService.sendToUser(userId, notification);
+
+  return notification;
+};
+
+// SerialPort parser 수정
+const setupSerialPort = () => {
   try {
     serialPort = new SerialPort({
       path: 'COM6',
@@ -20,45 +40,50 @@ const connectSerialPort = () => {
 
     const parser = serialPort.pipe(new ReadlineParser({ delimiter: '\n' }));
 
-    serialPort.open((err) => {
-      if (err) {
-        console.error('Error opening port:', err.message);
-      } else {
-        console.log('Serial port opened successfully');
-      }
-    });
-
-    serialPort.on('error', (err) => {
-      console.error('Serial Port Error:', err.message);
-    });
-
     parser.on('data', async (data) => {
       const message = data.toString().trim();
       console.log('Received from Arduino:', message);
-    
+
       if (message.startsWith("PASSWORD_USED:")) {
         const password = message.substring(14);
-        console.log('Password to update:', password);
-    
+        
         try {
-          // 기존 코드와 동일: 비밀번호 사용 처리
-          const [result] = await pool.query(
-            'UPDATE temp_passwords SET used = TRUE, used_at = CURRENT_TIMESTAMP WHERE password = ? AND used = FALSE',
+          // 비밀번호 사용 처리 및 관련 정보 조회
+          const [[passwordInfo]] = await pool.query(
+            `SELECT 
+               tp.*, 
+               issuer.id as issuer_id,
+               issuer.nickname as issuer_nickname,
+               target.nickname as target_nickname
+             FROM temp_passwords tp
+             JOIN users issuer ON tp.issuer_id = issuer.id
+             JOIN users target ON tp.target_id = target.id
+             WHERE tp.password = ? AND tp.used = FALSE`,
             [password]
           );
-    
-          if (result.affectedRows > 0) {
-            console.log(`Password ${password} marked as used in database`);
-          } else {
-            console.log(`No matching password found for ${password}`);
+
+          if (passwordInfo) {
+            // 비밀번호 사용 처리
+            await pool.query(
+              'UPDATE temp_passwords SET used = TRUE, used_at = CURRENT_TIMESTAMP WHERE id = ?',
+              [passwordInfo.id]
+            );
+
+            // 발급자에게 알림 생성
+            await createNotification(
+              passwordInfo.issuer_id,
+              'password_used',
+              '임시 비밀번호가 사용되었습니다',
+              `${passwordInfo.target_nickname}님이 발급하신 비밀번호를 사용했습니다.`,
+              password
+            );
           }
         } catch (error) {
-          console.error('Error updating password status:', error);
+          console.error('Error processing used password:', error);
         }
       } else if (message.startsWith("ACCESS_DENIED:")) {
         const failedPassword = message.substring(14);
         try {
-          // 실패 시도만 기록
           await pool.query(
             'INSERT INTO failed_attempts (attempted_password) VALUES (?)',
             [failedPassword]
@@ -69,16 +94,20 @@ const connectSerialPort = () => {
       }
     });
 
-    serialPort.on('open', () => {
-      console.log('Serial port is open');
+    serialPort.open((err) => {
+      if (err) {
+        console.error('Error opening port:', err.message);
+      } else {
+        console.log('Serial port opened successfully');
+      }
     });
+
   } catch (error) {
-    console.error('Error creating SerialPort:', error.message);
+    console.error('Error setting up serial port:', error);
   }
 };
 
-// 초기 연결 시도
-connectSerialPort();
+setupSerialPort();
 
 // 6자리 랜덤 비밀번호 생성 함수
 const generatePassword = () => {
@@ -152,7 +181,7 @@ router.post('/issue', async (req, res) => {
       });
     }
 
-    const password = generatePassword();
+    const password = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3시간 후
 
     // 새 비밀번호 저장
@@ -161,11 +190,24 @@ router.post('/issue', async (req, res) => {
       [decoded.id, targetUser.id, password, expiresAt]
     );
 
-    // 아두이노로 비밀번호 전송 시도
-    try {
-      await sendPasswordToArduino(password);
-    } catch (error) {
-      console.error('Failed to send password to Arduino:', error);
+    // 발급자 정보 조회
+    const [[issuer]] = await pool.query(
+      'SELECT nickname FROM users WHERE id = ?',
+      [decoded.id]
+    );
+
+    // 대상자에게 알림 생성
+    await createNotification(
+      targetUser.id,
+      'password_issued',
+      '새로운 임시 비밀번호가 발급되었습니다',
+      `${issuer.nickname}님이 임시 비밀번호를 발급했습니다.`,
+      password
+    );
+
+    // 아두이노로 비밀번호 전송
+    if (serialPort && serialPort.isOpen) {
+      serialPort.write(`SET_PASSWORD:${password}\n`);
     }
 
     res.json({ success: true, password });
@@ -404,6 +446,77 @@ router.get('/issued-by-me', async (req, res) => {
     res.json({ passwords });
   } catch (error) {
     console.error('Error fetching issued passwords:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 알림 관련 라우트들
+router.get('/notifications', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+    
+    const [notifications] = await pool.query(
+      `SELECT * FROM notifications 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC 
+       LIMIT 50`,
+      [decoded.id]
+    );
+
+    res.json({ notifications });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+router.put('/notifications/:id/read', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+    
+    await pool.query(
+      `UPDATE notifications 
+       SET read_at = CURRENT_TIMESTAMP 
+       WHERE id = ? AND user_id = ?`,
+      [req.params.id, decoded.id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+router.put('/notifications/read-all', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+    
+    await pool.query(
+      `UPDATE notifications 
+       SET read_at = CURRENT_TIMESTAMP 
+       WHERE user_id = ? AND read_at IS NULL`,
+      [decoded.id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
     res.status(500).json({ message: '서버 오류가 발생했습니다.' });
   }
 });

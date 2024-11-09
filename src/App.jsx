@@ -7,9 +7,18 @@ import ReceivePasswordScreen from './components/ReceivePasswordScreen';
 import IssueHistoryScreen from './components/IssueHistoryScreen';
 import AccessHistoryScreen from './components/AccessHistoryScreen';
 import PasswordManagementScreen from './components/PasswordManagementScreen';
+import NotificationsPage from './pages/NotificationsPage';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 const App = () => {
   const path = window.location.pathname;
+
+  // NotificationProvider로 감싸는 컴포넌트들은 로그인 후에만 보이는 화면들입니다
+  const shouldWrapWithNotificationProvider = () => {
+    const protectedRoutes = ['/main', '/issue', '/receive', '/issue-history', 
+      '/access-history', '/password-management', '/notifications'];
+    return protectedRoutes.includes(path);
+  };
 
   const renderContent = () => {
     switch (path) {
@@ -27,6 +36,8 @@ const App = () => {
         return <AccessHistoryScreen />;
       case '/password-management':
         return <PasswordManagementScreen/>;
+      case '/notifications':
+        return <NotificationsPage />;
       case '/':
         return <LoginScreen />;
       default:
@@ -36,7 +47,13 @@ const App = () => {
 
   return (
     <div>
-      {renderContent()}
+      {shouldWrapWithNotificationProvider() ? (
+        <NotificationProvider>
+          {renderContent()}
+        </NotificationProvider>
+      ) : (
+        renderContent()
+      )}
     </div>
   );
 };

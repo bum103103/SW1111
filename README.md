@@ -10,13 +10,21 @@ USE doorlock_db;
 
 -- 임시 비밀번호 테이블 
 
-CREATE TABLE temp_passwords (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  password VARCHAR(6) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
+CREATE TABLE `temp_passwords` (
+    ->   `id` INT NOT NULL AUTO_INCREMENT,
+    ->   `issuer_id` INT NOT NULL,
+    ->   `target_id` INT NOT NULL,
+    ->   `password` VARCHAR(50) NOT NULL,
+    ->   `used` TINYINT(1) NOT NULL DEFAULT 0,
+    ->   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ->   `used_at` DATETIME NULL DEFAULT NULL,
+    ->   `expires_at` DATETIME NOT NULL,
+    ->   PRIMARY KEY (`id`),
+    ->   INDEX `idx_target_id` (`target_id`),
+    ->   INDEX `idx_issuer_id` (`issuer_id`),
+    ->   FOREIGN KEY (`issuer_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    ->   FOREIGN KEY (`target_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+    -> ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- 사용자 테이블 생성

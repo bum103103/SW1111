@@ -45,28 +45,28 @@ const IssuePasswordScreen = () => {
   };
 
   return (
-    <div className="h-screen w-1/2 mx-auto bg-white flex flex-col">
-      <div className="px-4 py-3 border-b flex items-center">
+    <div className="min-h-screen w-full md:w-1/2 mx-auto bg-white flex flex-col">
+      <div className="px-4 py-6 border-b flex items-center relative">
         <button
           onClick={() => window.location.href = '/main'}
-          className="absolute left-1/4 ml-4"
+          className="absolute left-4 md:left-4"
         >
           <ChevronLeft className="h-6 w-6 text-gray-500" />
         </button>
-        <h1 className="text-xl font-semibold text-center flex-1">일회용 비밀번호 발급</h1>
+        <h1 className="text-2xl font-semibold text-center flex-1">일회용 비밀번호 발급</h1>
       </div>
       
-      <div className="flex-1 p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="flex-1 p-4 sm:p-6 md:p-8">
+        <form onSubmit={handleSubmit} className="space-y-6 max-w-md w-full mx-auto">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-base font-medium text-gray-700 mb-2">
               사용자 닉네임
             </label>
             <input
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-4 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-base"
               placeholder="닉네임을 입력하세요"
               required
             />
@@ -75,7 +75,7 @@ const IssuePasswordScreen = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400"
+            className="w-full py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 text-base font-medium shadow-sm"
           >
             {isLoading ? '발급 중...' : '비밀번호 발급하기'}
           </button>
@@ -85,7 +85,7 @@ const IssuePasswordScreen = () => {
           <div className={`mt-6 p-4 rounded-lg ${
             result.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
           }`}>
-            <p className="font-medium">{result.message}</p>
+            <p className="font-medium text-base">{result.message}</p>
             {result.success && result.password && (
               <p className="mt-2 text-2xl font-bold text-center">{result.password}</p>
             )}

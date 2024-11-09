@@ -43,25 +43,25 @@ const ReceivePasswordScreen = () => {
   }, []);
 
   return (
-    <div className="h-screen w-1/2 mx-auto bg-white flex flex-col">
-      <div className="px-4 py-3 border-b flex items-center">
+    <div className="min-h-screen w-full md:w-1/2 mx-auto bg-white flex flex-col">
+      <div className="px-4 py-6 border-b flex items-center relative">
         <button
           onClick={() => window.location.href = '/main'}
-          className="absolute left-1/4 ml-4"
+          className="absolute left-4 md:left-4"
         >
           <ChevronLeft className="h-6 w-6 text-gray-500" />
         </button>
-        <h1 className="text-xl font-semibold text-center flex-1">비밀번호 확인</h1>
+        <h1 className="text-2xl font-semibold text-center flex-1">비밀번호 확인</h1>
       </div>
       
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
         {loading ? (
-          <div className="text-center text-gray-500">로딩 중...</div>
+          <div className="text-center text-gray-500 text-base">로딩 중...</div>
         ) : error ? (
-          <div className="text-center text-red-600">{error}</div>
+          <div className="text-center text-red-600 text-base">{error}</div>
         ) : (
           <div className="text-center">
-            <div className="text-gray-600 mb-4">현재 발급된 비밀번호:</div>
+            <div className="text-gray-600 mb-4 text-base">현재 발급된 비밀번호:</div>
             <div className="text-4xl font-bold text-blue-600">{password}</div>
           </div>
         )}

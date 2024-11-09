@@ -39,9 +39,9 @@ const MainScreen = () => {
   };
 
   return (
-    <div className="h-screen w-1/2 mx-auto bg-white flex flex-col">
-      <div className="px-4 py-3 border-b">
-        <h1 className="text-xl font-semibold text-center">메인화면</h1>
+    <div className="min-h-screen w-full md:w-1/2 mx-auto bg-white flex flex-col">
+      <div className="px-4 py-6 border-b">
+        <h1 className="text-2xl font-semibold text-center">메인화면</h1>
       </div>
       
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
@@ -55,17 +55,17 @@ const MainScreen = () => {
               onClick={() => handleItemClick(item.path, item.enabled)}
             >
               <div className="flex items-center gap-4">
-                <div className="p-2 bg-gray-50 rounded-xl">
+                <div className="p-3 bg-gray-50 rounded-xl">
                   {item.icon}
                 </div>
                 <div>
-                  <div className="text-lg font-medium">{item.type}</div>
+                  <div className="text-base font-medium">{item.type}</div>
                   <div className="text-gray-500 text-sm">
                     {item.description}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="h-5 w-5 text-gray-400" />
+              <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
             </div>
           ))}
         </div>

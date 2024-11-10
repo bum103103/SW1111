@@ -14,8 +14,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);  // HTTP 서버 생성
 
+// CORS 설정을 더 유연하게 변경
 app.use(cors({
-  origin: ['http://localhost:6173', 'http://localhost:5173'],
+  origin: ['http://localhost:6173', 'http://localhost:5173', ' https://1e36-59-22-83-202.ngrok-free.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']

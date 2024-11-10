@@ -83,44 +83,46 @@ const DeliveryFlow = () => {
   const swipingRef = useRef(false);
 
   useEffect(() => {
-      const fetchDoorLockPassword = async () => {
-          try {
-              setLoading(true);
-              console.log('비밀번호 요청 시작, userId:', userId);
+    const fetchDoorLockPassword = async () => {
+        try {
+            setLoading(true);
+            console.log('비밀번호 요청 시작, userId:', userId);
 
-              const response = await fetch(`http://localhost:8080/api/passwords/check/${userId}`, {
-                  method: 'GET',
-                  headers: {
-                      'Content-Type': 'application/json',
-                      'Accept': 'application/json'
-                  }
-              });
+            // localhost 주소를 상대 경로로 변경
+            const response = await fetch(`/api/passwords/check/${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include'  // credentials 추가
+            });
 
-              if (!response.ok) {
-                  throw new Error(`HTTP error! status: ${response.status}`);
-              }
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-              const data = await response.json();
-              console.log('서버에서 받은 데이터:', data);
+            const data = await response.json();
+            console.log('서버에서 받은 데이터:', data);
 
-              if (data.passwords && data.passwords.length > 0) {
-                  setDoorLockPassword(data.passwords[0].password);
-              } else {
-                  console.log('사용 가능한 비밀번호가 없습니다.');
-                  setDoorLockPassword('비밀번호 없음');
-              }
-          } catch (error) {
-              console.error('비밀번호 가져오기 실패:', error);
-              setDoorLockPassword('오류 발생');
-          } finally {
-              setLoading(false);
-          }
-      };
+            if (data.passwords && data.passwords.length > 0) {
+                setDoorLockPassword(data.passwords[0].password);
+            } else {
+                console.log('사용 가능한 비밀번호가 없습니다.');
+                setDoorLockPassword('비밀번호 없음');
+            }
+        } catch (error) {
+            console.error('비밀번호 가져오기 실패:', error);
+            setDoorLockPassword('비밀번호 조회 실패');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      if (step === 3 && userId) {
-          fetchDoorLockPassword();
-      }
-  }, [step, userId]);
+    if (step === 3 && userId) {
+        fetchDoorLockPassword();
+    }
+}, [step, userId]);
 
     const handleTouchStart = (e) => {
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;

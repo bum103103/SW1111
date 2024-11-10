@@ -6,7 +6,7 @@ const SelectUserPage = () => {
     const [users, setUsers] = useState([]);
     const [selectedDelivery, setSelectedDelivery] = useState('');
     const [selectedOwner, setSelectedOwner] = useState('');
-    const [loading, setLoading] = useState(true);  // 로딩 상태 추가
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -15,28 +15,31 @@ const SelectUserPage = () => {
                 setLoading(true);
                 console.log('사용자 데이터 요청 시작');
                 
-                const response = await fetch('http://localhost:8080/api/auth/users', {  // 포트 변경
+                const response = await fetch('/api/auth/users', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
-                    }
+                    },
+                    credentials: 'include'
                 });
+                
+                console.log('서버 응답 상태:', response.status);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                console.log('서버에서 받은 데이터:', data);
+                console.log('받아온 유저 데이터:', data);
                 setUsers(data);
             } catch (error) {
-                console.error('사용자 데이터 가져오기 실패:', error);
+                console.error('Error fetching users:', error);
             } finally {
                 setLoading(false);
             }
         };
-    
+
         fetchUsers();
     }, []);
 

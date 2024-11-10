@@ -82,26 +82,18 @@ router.post('/login', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     console.log('사용자 목록 조회 API 호출됨');
+    console.log('Request Headers:', req.headers);
+    console.log('Request Origin:', req.get('origin'));
     
-    // 데이터베이스 조회 전 연결 상태 확인
-    const [testConnection] = await pool.query('SELECT 1');
-    console.log('DB 연결 테스트:', testConnection);
-
-    // users 테이블의 데이터 존재 여부 확인
-    const [countResult] = await pool.query('SELECT COUNT(*) as count FROM users');
-    console.log('전체 사용자 수:', countResult[0].count);
-
-    // 실제 사용자 데이터 조회
+    // CORS 헤더 명시적 설정
+    res.header('Access-Control-Allow-Origin', req.get('origin'));
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
     const [users] = await pool.query(
       'SELECT id, username, nickname FROM users'
     );
     
     console.log('조회된 사용자 목록:', users);
-    
-    if (users.length === 0) {
-      console.log('조회된 사용자가 없습니다.');
-    }
-
     res.json(users);
   } catch (error) {
     console.error('사용자 목록 조회 에러:', error);

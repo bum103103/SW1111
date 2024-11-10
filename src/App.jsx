@@ -1,4 +1,4 @@
-// App.jsx
+// src/App.jsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import SelectUserPage from './components/SelectUserPage';
@@ -6,6 +6,7 @@ import MyBaeminPage from './components/MyBaeminPage';
 import DeliveryFlow from './components/DeliveryFlow';
 import SettingsPage from './components/SettingsPage';
 import DoorSettingsPage from './components/DoorSettingsPage';
+import TestPasswordManagementPage from './components/TestPasswordManagementPage';
 import { NotificationProvider } from './contexts/NotificationContext';
 
 const App = () => {
@@ -19,6 +20,7 @@ const App = () => {
                         <Route path="/baemin" element={<MyBaeminPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/doorsettings" element={<DoorSettingsPage />} />
+                        <Route path="/test-password-management" element={<TestPasswordManagementPage />} />
                     </Routes>
                 </div>
             </NotificationProvider>

@@ -49,7 +49,13 @@ const MyBaeminPage = () => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            navigate('/B/1', { replace: false });
+                            navigate('/settings', {
+                                state: {
+                                    userId: userInfo.userId,
+                                    username: userInfo.username,
+                                    nickname: userInfo.nickname
+                                }
+                            });
                         }}
                     >
                         <Settings className="w-6 h-6" />

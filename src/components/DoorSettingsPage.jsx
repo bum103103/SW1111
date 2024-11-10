@@ -1,5 +1,3 @@
-// src/components/DoorSettingsPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Key, Settings, ChevronRight, Smartphone, Bluetooth } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -8,8 +6,13 @@ const DoorSettingsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userInfo, setUserInfo] = useState(null);
-  const [isNFCEnabled, setIsNFCEnabled] = useState(true);
-  const [isBluetoothEnabled, setIsBluetoothEnabled] = useState(true);
+  // localStorage에서 초기값을 가져오거나, 없으면 true로 설정
+  const [isNFCEnabled, setIsNFCEnabled] = useState(
+    JSON.parse(localStorage.getItem('isNFCEnabled') ?? 'true')
+  );
+  const [isBluetoothEnabled, setIsBluetoothEnabled] = useState(
+    JSON.parse(localStorage.getItem('isBluetoothEnabled') ?? 'true')
+  );
 
   useEffect(() => {
     if (location.state?.nickname) {
@@ -23,8 +26,17 @@ const DoorSettingsPage = () => {
     }
   }, [location.state, navigate]);
 
-  const handleNFCToggle = () => setIsNFCEnabled(!isNFCEnabled);
-  const handleBluetoothToggle = () => setIsBluetoothEnabled(!isBluetoothEnabled);
+  const handleNFCToggle = () => {
+    const newValue = !isNFCEnabled;
+    setIsNFCEnabled(newValue);
+    localStorage.setItem('isNFCEnabled', JSON.stringify(newValue));
+  };
+
+  const handleBluetoothToggle = () => {
+    const newValue = !isBluetoothEnabled;
+    setIsBluetoothEnabled(newValue);
+    localStorage.setItem('isBluetoothEnabled', JSON.stringify(newValue));
+  };
 
   return (
     <div className="w-full max-w-md mx-auto h-screen bg-gray-50 flex flex-col overflow-y-auto">

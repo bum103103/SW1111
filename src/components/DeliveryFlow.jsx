@@ -82,20 +82,44 @@ const DeliveryFlow = () => {
     const touchStartX = useRef(null);
     const swipingRef = useRef(false);
 
+    // localStorage에서 초기값을 가져오거나, 없으면 true로 설정
+    const [isNFCEnabled, setIsNFCEnabled] = useState(
+        JSON.parse(localStorage.getItem('isNFCEnabled') ?? 'true')
+    );
+    const [isBluetoothEnabled, setIsBluetoothEnabled] = useState(
+        JSON.parse(localStorage.getItem('isBluetoothEnabled') ?? 'true')
+    );
+
+    // localStorage의 변화를 감지하기 위한 effect
+    useEffect(() => {
+        const handleStorageChange = () => {
+            setIsNFCEnabled(JSON.parse(localStorage.getItem('isNFCEnabled') ?? 'true'));
+            setIsBluetoothEnabled(JSON.parse(localStorage.getItem('isBluetoothEnabled') ?? 'true'));
+        };
+
+        // storage 이벤트 리스너 추가
+        window.addEventListener('storage', handleStorageChange);
+
+        // 컴포넌트가 마운트될 때마다 최신값으로 업데이트
+        handleStorageChange();
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, []);
     useEffect(() => {
         const fetchDoorLockPassword = async () => {
             try {
                 setLoading(true);
                 console.log('비밀번호 요청 시작, userId:', userId);
 
-                // localhost 주소를 상대 경로로 변경
                 const response = await fetch(`/api/passwords/check/${userId}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    credentials: 'include'  // credentials 추가
+                    credentials: 'include'
                 });
 
                 if (!response.ok) {
@@ -132,13 +156,11 @@ const DeliveryFlow = () => {
 
     const handleTouchMove = (e) => {
         if (!swipingRef.current || touchStartX.current === null) return;
-        
+
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const deltaX = clientX - touchStartX.current;
-        
+
         if (deltaX > 0) {
-            // 기존: const progress = Math.min(100, (deltaX / 300) * 100 * 0.5);
-            // 수정: 계수 조정 (300 -> 150, 0.5 제거)
             const progress = Math.min(100, (deltaX / 150) * 100);
             setSwipeProgress(progress);
         }
@@ -209,15 +231,22 @@ const DeliveryFlow = () => {
                                 {isDoorLockExpanded && (
                                     <div className="mt-4 space-y-4">
                                         <div className="grid grid-cols-2 gap-3">
-                                            <div className="bg-gray-50 rounded-xl p-4 text-center">
-                                                <Smartphone className="h-6 w-6 mx-auto mb-2 text-teal-400" />
+                                            <div className={`rounded-xl p-4 text-center flex flex-col items-center transition-all duration-300 ${isNFCEnabled ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'
+                                                }`}>
+                                                <Smartphone className="h-6 w-6 mb-2" />
                                                 <div className="font-medium">NFC</div>
-                                                <div className="text-xs text-gray-500">태그하여 출입</div>
+                                                <div className="text-xs">
+                                                    {isNFCEnabled ? '켜짐' : '꺼짐'}
+                                                </div>
                                             </div>
-                                            <div className="bg-gray-50 rounded-xl p-4 text-center">
-                                                <Bluetooth className="h-6 w-6 mx-auto mb-2 text-teal-400" />
+
+                                            <div className={`rounded-xl p-4 text-center flex flex-col items-center transition-all duration-300 ${isBluetoothEnabled ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'
+                                                }`}>
+                                                <Bluetooth className="h-6 w-6 mb-2" />
                                                 <div className="font-medium">블루투스</div>
-                                                <div className="text-xs text-gray-500">자동 감지</div>
+                                                <div className="text-xs">
+                                                    {isBluetoothEnabled ? '켜짐' : '꺼짐'}
+                                                </div>
                                             </div>
                                         </div>
 

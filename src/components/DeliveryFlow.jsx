@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MapPin, ArrowRight, Clock, Building, Phone, Smartphone, Bluetooth } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const DeliveryMap = ({ step, driverName }) => {
     const positions = {
@@ -15,32 +15,26 @@ const DeliveryMap = ({ step, driverName }) => {
 
     return (
         <svg viewBox="0 0 400 400" className="w-full h-full">
-            {/* 배경 */}
             <rect width="400" height="400" fill="#f0f0f0" />
 
-            {/* 도로 */}
             <path d="M50 100 H350" stroke="#d4d4d4" strokeWidth="30" />
             <path d="M100 50 V350" stroke="#d4d4d4" strokeWidth="30" />
             <path d="M250 200 V350" stroke="#d4d4d4" strokeWidth="30" />
             <path d="M250 200 H350" stroke="#d4d4d4" strokeWidth="30" />
 
-            {/* 도로 테두리 */}
             <path d="M50 100 H350" stroke="#a3a3a3" strokeWidth="2" fill="none" />
             <path d="M100 50 V350" stroke="#a3a3a3" strokeWidth="2" fill="none" />
             <path d="M250 200 V350" stroke="#a3a3a3" strokeWidth="2" fill="none" />
             <path d="M250 200 H350" stroke="#a3a3a3" strokeWidth="2" fill="none" />
 
-            {/* 건물 */}
             <rect x="120" y="120" width="40" height="40" fill="#e5e5e5" stroke="#a3a3a3" />
             <rect x="120" y="220" width="40" height="40" fill="#e5e5e5" stroke="#a3a3a3" />
             <rect x="270" y="120" width="40" height="40" fill="#e5e5e5" stroke="#a3a3a3" />
             <rect x="270" y="220" width="40" height="40" fill="#e5e5e5" stroke="#a3a3a3" />
 
-            {/* 목적지 마커 */}
             <path d="M270 220 l15 -30 a15 15 0 0 0 -30 0 z" fill="#ef4444" />
             <circle cx="270" cy="205" r="5" fill="white" />
 
-            {/* 경로 */}
             <path
                 d="M100 100 H250 V220"
                 stroke="#4ade80"
@@ -49,10 +43,8 @@ const DeliveryMap = ({ step, driverName }) => {
                 fill="none"
             />
 
-            {/* 거리 표시 */}
             <text x="150" y="90" fontSize="12" fill="#666">1.2km</text>
 
-            {/* 현재 위치 마커 (애니메이션) */}
             <g transform={`translate(${currentPos.x}, ${currentPos.y})`} className="transition-transform duration-1000">
                 <circle r="20" fill="#4ade80" opacity="0.3" className="animate-ping" />
                 <circle r="15" fill="#4ade80" />
@@ -72,6 +64,7 @@ const DeliveryMap = ({ step, driverName }) => {
 };
 
 const DeliveryFlow = () => {
+    const navigate = useNavigate();
     const location = useLocation();
     const { userId, nickname } = location.state || { userId: null, nickname: '배달원' };
     const [step, setStep] = useState(1);
@@ -174,19 +167,18 @@ const DeliveryFlow = () => {
 
     return (
         <div className="h-screen w-full md:w-1/2 mx-auto relative bg-white">
-            {/* 지도 영역 */}
             <div className="h-full w-full absolute top-0 left-0 z-0">
                 <DeliveryMap step={step} driverName={nickname} />
             </div>
 
-            {/* UI 요소들을 감싸는 컨테이너 */}
             <div className="relative h-full z-10">
-                {/* 거절 버튼 */}
-                <div className="absolute top-4 left-4 bg-white rounded-full p-2 shadow-lg cursor-pointer hover:bg-gray-50">
+                <div
+                    className="absolute top-4 left-4 bg-white rounded-full p-2 shadow-lg cursor-pointer hover:bg-gray-50"
+                    onClick={() => navigate('/')}
+                >
                     <span className="text-sm">× 거절</span>
                 </div>
 
-                {/* 배달 정보 카드 */}
                 {step === 1 && (
                     <div className="absolute bottom-32 left-4 right-4 bg-white rounded-xl p-4 shadow-lg">
                         <div className="text-lg font-medium">엔터앤스프레드롤 롯데백화점...</div>
@@ -198,7 +190,6 @@ const DeliveryFlow = () => {
                     </div>
                 )}
 
-                {/* 주문 상세 패널 */}
                 {step === 3 && (
                     <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-lg z-20">
                         <div className="p-4">
@@ -274,7 +265,6 @@ const DeliveryFlow = () => {
                             </div>
                         </div>
 
-                        {/* 픽업 완료 버튼 */}
                         <div className="px-4 pb-4">
                             <button
                                 className="w-full bg-green-500 text-white h-16 rounded-lg font-medium hover:bg-green-600 transition-colors"
@@ -285,7 +275,7 @@ const DeliveryFlow = () => {
                         </div>
                     </div>
                 )}
-                {/* 스와이프 버튼 */}
+
                 {step === 1 && (
                     <div
                         className="absolute bottom-0 left-0 right-0 z-20 cursor-pointer"
@@ -310,7 +300,6 @@ const DeliveryFlow = () => {
                     </div>
                 )}
 
-                {/* 매장 도착 버튼 */}
                 {step === 2 && (
                     <div className="absolute bottom-0 left-0 right-0 z-20">
                         <button
@@ -322,7 +311,6 @@ const DeliveryFlow = () => {
                     </div>
                 )}
 
-                {/* 배달 완료 스와이프 */}
                 {step === 4 && (
                     <div
                         className="absolute bottom-0 left-0 right-0 z-20 cursor-pointer"
@@ -347,7 +335,6 @@ const DeliveryFlow = () => {
                     </div>
                 )}
 
-                {/* 확인 화면 */}
                 {step === 5 && (
                     <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-lg z-20">
                         <div className="p-4 text-center">
@@ -362,7 +349,6 @@ const DeliveryFlow = () => {
                     </div>
                 )}
 
-                {/* 전화 연결 확인 모달 */}
                 {showCallConfirm && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <div className="bg-white rounded-lg p-6 m-4 max-w-sm w-full">
@@ -391,4 +377,4 @@ const DeliveryFlow = () => {
     );
 };
 
-export default DeliveryFlow; 
+export default DeliveryFlow;

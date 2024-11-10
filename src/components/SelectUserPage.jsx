@@ -145,7 +145,7 @@ const SelectUserPage = () => {
                 {/* 집주인 선택 섹션 */}
                 <div>
                     <label className="block text-gray-700 font-semibold mb-2">
-                        비밀번호 발급자
+                        집 주인 선택 (임시 비밀번호 발급한 사용자: 자동선택)
                     </label>
                     <select
                         className="w-full p-3 border rounded-lg mb-3"

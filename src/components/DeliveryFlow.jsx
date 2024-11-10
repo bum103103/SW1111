@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MapPin, ArrowRight, Clock, Building, Phone, Smartphone, Bluetooth } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-const DeliveryMap = ({ step, driverName }) => {  
+const DeliveryMap = ({ step, driverName }) => {
     const positions = {
         1: { x: 100, y: 100 },
         2: { x: 250, y: 100 },
@@ -72,57 +72,57 @@ const DeliveryMap = ({ step, driverName }) => {
 };
 
 const DeliveryFlow = () => {
-  const location = useLocation();
-  const { userId, nickname } = location.state || { userId: null, nickname: '배달원' };
-  const [step, setStep] = useState(1);
-  const [isDoorLockExpanded, setIsDoorLockExpanded] = useState(false);
-  const [swipeProgress, setSwipeProgress] = useState(0);
-  const [doorLockPassword, setDoorLockPassword] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const touchStartX = useRef(null);
-  const swipingRef = useRef(false);
+    const location = useLocation();
+    const { userId, nickname } = location.state || { userId: null, nickname: '배달원' };
+    const [step, setStep] = useState(1);
+    const [isDoorLockExpanded, setIsDoorLockExpanded] = useState(false);
+    const [swipeProgress, setSwipeProgress] = useState(0);
+    const [doorLockPassword, setDoorLockPassword] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const touchStartX = useRef(null);
+    const swipingRef = useRef(false);
 
-  useEffect(() => {
-    const fetchDoorLockPassword = async () => {
-        try {
-            setLoading(true);
-            console.log('비밀번호 요청 시작, userId:', userId);
+    useEffect(() => {
+        const fetchDoorLockPassword = async () => {
+            try {
+                setLoading(true);
+                console.log('비밀번호 요청 시작, userId:', userId);
 
-            // localhost 주소를 상대 경로로 변경
-            const response = await fetch(`/api/passwords/check/${userId}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                credentials: 'include'  // credentials 추가
-            });
+                // localhost 주소를 상대 경로로 변경
+                const response = await fetch(`/api/passwords/check/${userId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include'  // credentials 추가
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('서버에서 받은 데이터:', data);
+
+                if (data.passwords && data.passwords.length > 0) {
+                    setDoorLockPassword(data.passwords[0].password);
+                } else {
+                    console.log('사용 가능한 비밀번호가 없습니다.');
+                    setDoorLockPassword('비밀번호 없음');
+                }
+            } catch (error) {
+                console.error('비밀번호 가져오기 실패:', error);
+                setDoorLockPassword('비밀번호 조회 실패');
+            } finally {
+                setLoading(false);
             }
+        };
 
-            const data = await response.json();
-            console.log('서버에서 받은 데이터:', data);
-
-            if (data.passwords && data.passwords.length > 0) {
-                setDoorLockPassword(data.passwords[0].password);
-            } else {
-                console.log('사용 가능한 비밀번호가 없습니다.');
-                setDoorLockPassword('비밀번호 없음');
-            }
-        } catch (error) {
-            console.error('비밀번호 가져오기 실패:', error);
-            setDoorLockPassword('비밀번호 조회 실패');
-        } finally {
-            setLoading(false);
+        if (step === 3 && userId) {
+            fetchDoorLockPassword();
         }
-    };
-
-    if (step === 3 && userId) {
-        fetchDoorLockPassword();
-    }
-}, [step, userId]);
+    }, [step, userId]);
 
     const handleTouchStart = (e) => {
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -137,13 +137,15 @@ const DeliveryFlow = () => {
         const deltaX = clientX - touchStartX.current;
         
         if (deltaX > 0) {
-            const progress = Math.min(100, (deltaX / 300) * 100 * 0.5);
+            // 기존: const progress = Math.min(100, (deltaX / 300) * 100 * 0.5);
+            // 수정: 계수 조정 (300 -> 150, 0.5 제거)
+            const progress = Math.min(100, (deltaX / 150) * 100);
             setSwipeProgress(progress);
         }
     };
 
     const handleTouchEnd = () => {
-        if (swipeProgress >= 60) {
+        if (swipeProgress >= 40) {
             setStep(step + 1);
         }
         setSwipeProgress(0);
@@ -186,14 +188,22 @@ const DeliveryFlow = () => {
                                 <div className="mt-1">홍삼도시락 (150g) x 1개</div>
                                 <div className="text-right mt-2 font-bold">14,400원</div>
                             </div>
-
                             <div className="border-t pt-4">
                                 <div className="flex justify-between items-center" onClick={() => setIsDoorLockExpanded(!isDoorLockExpanded)}>
                                     <div className="flex items-center gap-2">
                                         <Building className="h-5 w-5 text-teal-400" />
                                         <span className="font-medium">공동현관 출입</span>
                                     </div>
-                                    <span className="text-teal-400">{isDoorLockExpanded ? '접기' : '펼치기'}</span>
+                                    <div className="relative cursor-pointer">
+                                        <span className="text-teal-400">{isDoorLockExpanded ? '접기' : '펼치기'}</span>
+                                        {!isDoorLockExpanded && (
+                                            <>
+                                                <div className="absolute -top-3 -right-3 w-12 h-12 bg-yellow-300 rounded-full animate-ping opacity-30" />
+                                                <div className="absolute -top-2 -right-2 w-10 h-10 bg-yellow-300 rounded-full animate-ping opacity-40" />
+                                                <div className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-300 rounded-full animate-ping opacity-50" />
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {isDoorLockExpanded && (
@@ -239,7 +249,7 @@ const DeliveryFlow = () => {
 
                         {/* 픽업 완료 버튼 */}
                         <div className="px-4 pb-4">
-                            <button 
+                            <button
                                 className="w-full bg-green-500 text-white h-16 rounded-lg font-medium hover:bg-green-600 transition-colors"
                                 onClick={() => setStep(4)}
                             >
@@ -251,7 +261,7 @@ const DeliveryFlow = () => {
 
                 {/* 스와이프 버튼 */}
                 {step === 1 && (
-                    <div 
+                    <div
                         className="absolute bottom-0 left-0 right-0 z-20 cursor-pointer"
                         onTouchStart={handleTouchStart}
                         onTouchMove={handleTouchMove}
@@ -262,9 +272,9 @@ const DeliveryFlow = () => {
                         onMouseLeave={handleTouchEnd}
                     >
                         <div className="relative h-16 bg-purple-900 overflow-hidden">
-                            <div 
+                            <div
                                 className="absolute top-0 left-0 h-full bg-purple-700 flex items-center justify-center transition-all duration-300 ease-out"
-                                style={{ 
+                                style={{
                                     width: `${Math.max(43, Math.min(100, swipeProgress + 43))}%`
                                 }}
                             >
@@ -286,9 +296,9 @@ const DeliveryFlow = () => {
                     </div>
                 )}
 
-               {/* 배달 완료 스와이프 */}
-               {step === 4 && (
-                    <div 
+                {/* 배달 완료 스와이프 */}
+                {step === 4 && (
+                    <div
                         className="absolute bottom-0 left-0 right-0 z-20 cursor-pointer"
                         onTouchStart={handleTouchStart}
                         onTouchMove={handleTouchMove}
@@ -299,9 +309,9 @@ const DeliveryFlow = () => {
                         onMouseLeave={handleTouchEnd}
                     >
                         <div className="relative h-16 bg-green-600 overflow-hidden">
-                            <div 
+                            <div
                                 className="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center transition-all duration-300 ease-out"
-                                style={{ 
+                                style={{
                                     width: `${Math.max(43, Math.min(100, swipeProgress + 43))}%`
                                 }}
                             >
@@ -316,7 +326,7 @@ const DeliveryFlow = () => {
                     <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-lg z-20">
                         <div className="p-4 text-center">
                             <div className="font-medium mb-4">배달 완료</div>
-                            <button 
+                            <button
                                 className="w-full bg-green-500 text-white h-16 rounded-lg font-medium hover:bg-green-600 transition-colors"
                                 onClick={() => setStep(1)}
                             >

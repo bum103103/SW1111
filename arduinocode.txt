@@ -79,6 +79,20 @@ void loop() {
           blinkLED(3);
         }
       }
+    }else if (received.startsWith("EXPIRE_PASSWORD:")) {
+      String expiredPassword = received.substring(16);
+      // 만료된 비밀번호 제거
+      for (int i = 0; i < tempPasswordCount; i++) {
+        if (tempPasswords[i] == expiredPassword) {
+          // 해당 비밀번호 제거 및 배열 정리
+          for (int j = i; j < tempPasswordCount - 1; j++) {
+            tempPasswords[j] = tempPasswords[j + 1];
+          }
+          tempPasswordCount--;
+          Serial.println("PASSWORD_EXPIRED:" + expiredPassword);
+          break;
+        }
+      }
     }
   }
 

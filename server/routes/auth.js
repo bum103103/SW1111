@@ -104,7 +104,93 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// routes/auth.js
+
+// 가장 최근에 비밀번호를 발급한 사용자만 조회 (issuer_id 기준)
+router.get('/users/issuers', async (req, res) => {
+  try {
+    const [users] = await pool.query(`
+      WITH LatestPassword AS (
+        SELECT tp.*,
+               ROW_NUMBER() OVER (PARTITION BY target_id ORDER BY created_at DESC) as rn
+        FROM temp_passwords tp
+        WHERE used = FALSE AND expires_at > NOW()
+      )
+      SELECT DISTINCT u.* 
+      FROM users u
+      INNER JOIN LatestPassword lp ON u.id = lp.issuer_id
+      WHERE lp.rn = 1
+      ORDER BY u.nickname
+    `);
+    
+    // 민감한 정보 제외하고 전송
+    const safeUsers = users.map(user => ({
+      id: user.id,
+      username: user.username,
+      nickname: user.nickname
+    }));
+    
+    res.json(safeUsers);
+  } catch (error) {
+    console.error('Error fetching issuer users:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 임시 비밀번호를 발급받은 사용자 목록 (target_id 기준)
+router.get('/users/targets', async (req, res) => {
+  try {
+    const [users] = await pool.query(`
+      WITH LatestPassword AS (
+        SELECT tp.*,
+               ROW_NUMBER() OVER (PARTITION BY target_id ORDER BY created_at DESC) as rn
+        FROM temp_passwords tp
+        WHERE used = FALSE AND expires_at > NOW()
+      )
+      SELECT DISTINCT u.* 
+      FROM users u
+      INNER JOIN LatestPassword lp ON u.id = lp.target_id
+      WHERE lp.rn = 1
+      ORDER BY u.nickname
+    `);
+    
+    // 민감한 정보 제외하고 전송
+    const safeUsers = users.map(user => ({
+      id: user.id,
+      username: user.username,
+      nickname: user.nickname
+    }));
+    
+    res.json(safeUsers);
+  } catch (error) {
+    console.error('Error fetching target users:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
 
 
+// routes/auth.js에 새로운 엔드포인트 추가
+
+router.get('/users/mapping', async (req, res) => {
+  try {
+      const [mappings] = await pool.query(`
+          SELECT DISTINCT tp.target_id, tp.issuer_id
+          FROM temp_passwords tp
+          WHERE tp.used = FALSE 
+          AND tp.expires_at > NOW()
+          AND NOT EXISTS (
+              SELECT 1
+              FROM temp_passwords tp2
+              WHERE tp2.target_id = tp.target_id
+              AND tp2.created_at > tp.created_at
+          )
+      `);
+      
+      res.json(mappings);
+  } catch (error) {
+      console.error('Error fetching user mappings:', error);
+      res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
 
 export default router;

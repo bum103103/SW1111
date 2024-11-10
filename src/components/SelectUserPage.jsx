@@ -3,36 +3,47 @@ import { useNavigate } from 'react-router-dom';
 import { Home, Bike } from 'lucide-react';
 
 const SelectUserPage = () => {
-    const [users, setUsers] = useState([]);
+    const [targetUsers, setTargetUsers] = useState([]);
+    const [issuerUsers, setIssuerUsers] = useState([]);
     const [selectedDelivery, setSelectedDelivery] = useState('');
     const [selectedOwner, setSelectedOwner] = useState('');
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
+    // 배달기사와 집주인 매핑 정보를 가져오는 함수
+    const fetchUserMapping = async () => {
+        try {
+            const response = await fetch('/api/auth/users/mapping', {
+                method: 'GET'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch user mapping');
+            }
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error fetching user mapping:', error);
+            return null;
+        }
+    };
+
+    // 사용자 목록 가져오기
     useEffect(() => {
         const fetchUsers = async () => {
             try {
                 setLoading(true);
-                console.log('사용자 데이터 요청 시작');
+                const [targetsResponse, issuersResponse] = await Promise.all([
+                    fetch('/api/auth/users/targets'),
+                    fetch('/api/auth/users/issuers')
+                ]);
+
+                const targetsData = await targetsResponse.json();
+                const issuersData = await issuersResponse.json();
                 
-                const response = await fetch('/api/auth/users', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'include'
-                });
-                
-                console.log('서버 응답 상태:', response.status);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log('받아온 유저 데이터:', data);
-                setUsers(data);
+                setTargetUsers(targetsData);
+                setIssuerUsers(issuersData);
             } catch (error) {
                 console.error('Error fetching users:', error);
             } finally {
@@ -43,9 +54,31 @@ const SelectUserPage = () => {
         fetchUsers();
     }, []);
 
+    // 배달기사 선택 시 자동으로 집주인 선택
+    const handleDeliverySelect = async (e) => {
+        const targetId = e.target.value;
+        setSelectedDelivery(targetId);
+        
+        if (targetId) {
+            try {
+                const mapping = await fetchUserMapping();
+                const issuer = mapping.find(m => m.target_id.toString() === targetId.toString());
+                
+                if (issuer) {
+                    setSelectedOwner(issuer.issuer_id.toString());
+                }
+            } catch (error) {
+                console.error('Error finding matching issuer:', error);
+            }
+        } else {
+            setSelectedOwner('');
+        }
+    };
+
     const handleSubmit = (type) => {
         const selectedUser = type === 'delivery' ? selectedDelivery : selectedOwner;
-        const selectedUserData = users.find(user => user.id.toString() === selectedUser.toString());
+        const userList = type === 'delivery' ? targetUsers : issuerUsers;
+        const selectedUserData = userList.find(user => user.id.toString() === selectedUser.toString());
 
         if (type === 'delivery') {
             navigate('/delivery-flow', {
@@ -81,14 +114,16 @@ const SelectUserPage = () => {
 
                 {/* 배달기사 선택 섹션 */}
                 <div className="mb-6">
-                    <label className="block text-gray-700 font-semibold mb-2">배달기사 선택</label>
+                    <label className="block text-gray-700 font-semibold mb-2">
+                        배달기사 선택 (임시 비밀번호 발급된 사용자)
+                    </label>
                     <select
                         className="w-full p-3 border rounded-lg mb-3"
                         value={selectedDelivery}
-                        onChange={(e) => setSelectedDelivery(e.target.value)}
+                        onChange={handleDeliverySelect}
                     >
                         <option value="">배달기사를 선택하세요</option>
-                        {users.map((user) => (
+                        {targetUsers.map((user) => (
                             <option key={user.id} value={user.id}>
                                 {user.nickname} ({user.username})
                             </option>
@@ -109,14 +144,16 @@ const SelectUserPage = () => {
 
                 {/* 집주인 선택 섹션 */}
                 <div>
-                    <label className="block text-gray-700 font-semibold mb-2">집주인 선택</label>
+                    <label className="block text-gray-700 font-semibold mb-2">
+                        비밀번호 발급자
+                    </label>
                     <select
                         className="w-full p-3 border rounded-lg mb-3"
                         value={selectedOwner}
-                        onChange={(e) => setSelectedOwner(e.target.value)}
+                        disabled  // 직접 선택 불가능하게 설정
                     >
                         <option value="">집주인을 선택하세요</option>
-                        {users.map((user) => (
+                        {issuerUsers.map((user) => (
                             <option key={user.id} value={user.id}>
                                 {user.nickname} ({user.username})
                             </option>

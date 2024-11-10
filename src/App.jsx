@@ -21,6 +21,7 @@ const App = () => {
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/doorsettings" element={<DoorSettingsPage />} />
                         <Route path="/test-password-management" element={<TestPasswordManagementPage />} />
+                    
                     </Routes>
                 </div>
             </NotificationProvider>

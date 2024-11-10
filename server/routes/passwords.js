@@ -45,51 +45,20 @@ const setupSerialPort = () => {
       console.log('Received from Arduino:', message);
 
       if (message.startsWith("PASSWORD_USED:")) {
-        const password = message.substring(14);
+        const password = message.split(":")[1];
+        handlePasswordUsed(password);
+      } 
+      else if (message.startsWith("ACCESS_DENIED:")) {
+        const failedPassword = message.split(":")[1];
+        logFailedAttempt(failedPassword);
+      }
+      else if (message.startsWith("NFC_PASSWORD:")) {
+        const nfcPassword = message.split(":")[1];
+        const result = await verifyNFCPassword(nfcPassword);
         
-        try {
-          // 비밀번호 사용 처리 및 관련 정보 조회
-          const [[passwordInfo]] = await pool.query(
-            `SELECT 
-               tp.*, 
-               issuer.id as issuer_id,
-               issuer.nickname as issuer_nickname,
-               target.nickname as target_nickname
-             FROM temp_passwords tp
-             JOIN users issuer ON tp.issuer_id = issuer.id
-             JOIN users target ON tp.target_id = target.id
-             WHERE tp.password = ? AND tp.used = FALSE`,
-            [password]
-          );
-
-          if (passwordInfo) {
-            // 비밀번호 사용 처리
-            await pool.query(
-              'UPDATE temp_passwords SET used = TRUE, used_at = CURRENT_TIMESTAMP WHERE id = ?',
-              [passwordInfo.id]
-            );
-
-            // 발급자에게 알림 생성
-            await createNotification(
-              passwordInfo.issuer_id,
-              'password_used',
-              '임시 비밀번호가 사용되었습니다',
-              `${passwordInfo.target_nickname}님이 발급하신 비밀번호를 사용했습니다.`,
-              password
-            );
-          }
-        } catch (error) {
-          console.error('Error processing used password:', error);
-        }
-      } else if (message.startsWith("ACCESS_DENIED:")) {
-        const failedPassword = message.substring(14);
-        try {
-          await pool.query(
-            'INSERT INTO failed_attempts (attempted_password) VALUES (?)',
-            [failedPassword]
-          );
-        } catch (error) {
-          console.error('Error logging failed attempt:', error);
+        // Send result back to Arduino
+        if (serialPort && serialPort.isOpen) {
+          serialPort.write(`NFC_RESULT:${result ? 'SUCCESS' : 'FAILED'}\n`);
         }
       }
     });
@@ -106,6 +75,7 @@ const setupSerialPort = () => {
     console.error('Error setting up serial port:', error);
   }
 };
+
 
 setupSerialPort();
 
@@ -522,3 +492,51 @@ router.put('/notifications/read-all', async (req, res) => {
 });
 
 export default router;
+
+// NFC 비밀번호 확인 함수
+async function verifyNFCPassword(password) {
+  try {
+    const [[passwordInfo]] = await pool.query(
+      `SELECT 
+         tp.*, 
+         issuer.id as issuer_id,
+         issuer.nickname as issuer_nickname,
+         target.nickname as target_nickname
+       FROM temp_passwords tp
+       JOIN users issuer ON tp.issuer_id = issuer.id
+       JOIN users target ON tp.target_id = target.id
+       WHERE tp.password = ? AND tp.used = FALSE AND tp.expires_at > NOW()`,
+      [password]
+    );
+
+    if (passwordInfo) {
+      // 비밀번호 사용 처리
+      await pool.query(
+        'UPDATE temp_passwords SET used = TRUE, used_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [passwordInfo.id]
+      );
+
+      // 발급자에게 알림 생성
+      await createNotification(
+        passwordInfo.issuer_id,
+        'password_used',
+        '임시 비밀번호가 사용되었습니다',
+        `${passwordInfo.target_nickname}님이 발급하신 비밀번호를 NFC로 사용했습니다.`,
+        password
+      );
+
+      return true;
+    }
+
+    // 실패 기록
+    await pool.query(
+      'INSERT INTO failed_attempts (attempted_password) VALUES (?)',
+      [password]
+    );
+    
+    return false;
+  } catch (error) {
+    console.error('Error verifying NFC password:', error);
+    return false;
+  }
+}

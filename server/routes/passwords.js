@@ -11,7 +11,52 @@ const router = express.Router();
 
 let serialPort = null;
 
-// server/routes/passwords.js
+
+router.get('/access-history', async (req, res) => {
+  try {
+    const filter = req.query.filter || 'all';
+
+    let query = `
+      SELECT 
+        tp.password as attempted_password,
+        tp.created_at,
+        tp.used_at,
+        'success' as type,
+        issuer.nickname as issuer_nickname,
+        target.nickname as user_nickname
+      FROM temp_passwords tp
+      JOIN users issuer ON tp.issuer_id = issuer.id
+      JOIN users target ON tp.target_id = target.id
+      WHERE tp.used = TRUE
+    `;
+
+    if (filter === 'fail') {
+      // 실패한 시도 기록 조회
+      const [failLogs] = await pool.query(`
+        SELECT 
+          id,
+          attempted_password,
+          attempt_time,
+          'fail' as type
+        FROM failed_attempts
+        ORDER BY attempt_time DESC
+        LIMIT 100
+      `);
+      return res.json({ history: failLogs });
+    } else if (filter === 'success') {
+      // 성공한 출입 기록 조회
+      query += ` ORDER BY tp.used_at DESC LIMIT 100`;
+    }
+
+    const [successLogs] = await pool.query(query);
+    res.json({ history: successLogs });
+  } catch (error) {
+    console.error('Error fetching access history:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+
 router.get('/issued-by/:issuerId', async (req, res) => {
   const issuerId = req.params.issuerId;
   try {

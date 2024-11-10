@@ -8,6 +8,39 @@ const router = express.Router();
 const JWT_SECRET = 'your-secret-key';
 
 
+
+
+// 특정 issuer_id가 발급한 비밀번호 목록을 가져오는 API
+router.get('/issued-passwords/:issuerId', async (req, res) => {
+  const { issuerId } = req.params;
+  try {
+    const [passwords] = await pool.query(
+      `SELECT tp.*, u.nickname AS target_nickname
+       FROM temp_passwords tp
+       JOIN users u ON tp.target_id = u.id
+       WHERE tp.issuer_id = ?`,
+      [issuerId]
+    );
+    res.json(passwords);
+  } catch (error) {
+    console.error('Error fetching issued passwords:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+
+// 사용자 목록 조회 API
+router.get('/all-users', async (req, res) => {
+  try {
+    const [users] = await pool.query('SELECT id, username, nickname FROM users');
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+
 // 회원가입
 router.post('/signup', async (req, res) => {
   try {

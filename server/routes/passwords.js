@@ -11,6 +11,25 @@ const router = express.Router();
 
 let serialPort = null;
 
+// server/routes/passwords.js
+router.get('/issued-by/:issuerId', async (req, res) => {
+  const issuerId = req.params.issuerId;
+  try {
+      const [passwords] = await pool.query(
+          `SELECT tp.*, u.nickname AS target_nickname
+          FROM temp_passwords tp
+          JOIN users u ON tp.target_id = u.id
+          WHERE tp.issuer_id = ?`,
+          [issuerId]
+      );
+      res.json(passwords);
+  } catch (error) {
+      console.error('Error fetching issued passwords:', error);
+      res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+
 // 알림 생성 함수
 const createNotification = async (userId, type, title, message, relatedPassword = null) => {
   const [result] = await pool.query(

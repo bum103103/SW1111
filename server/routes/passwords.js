@@ -28,7 +28,56 @@ const createNotification = async (userId, type, title, message, relatedPassword 
   return notification;
 };
 
-// SerialPort parser 수정
+// 실패한 비밀번호 시도 기록
+async function logFailedAttempt(failedPassword) {
+  try {
+    await pool.query(
+      'INSERT INTO failed_attempts (attempted_password) VALUES (?)',
+      [failedPassword]
+    );
+  } catch (error) {
+    console.error('Error logging failed attempt:', error);
+  }
+}
+
+// 비밀번호 사용 처리
+async function handlePasswordUsed(password) {
+  try {
+    // 비밀번호 사용 처리 및 관련 정보 조회
+    const [[passwordInfo]] = await pool.query(
+      `SELECT 
+         tp.*, 
+         issuer.id as issuer_id,
+         issuer.nickname as issuer_nickname,
+         target.nickname as target_nickname
+       FROM temp_passwords tp
+       JOIN users issuer ON tp.issuer_id = issuer.id
+       JOIN users target ON tp.target_id = target.id
+       WHERE tp.password = ? AND tp.used = FALSE`,
+      [password]
+    );
+
+    if (passwordInfo) {
+      // 비밀번호 사용 처리
+      await pool.query(
+        'UPDATE temp_passwords SET used = TRUE, used_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [passwordInfo.id]
+      );
+
+      // 발급자에게 알림 생성
+      await createNotification(
+        passwordInfo.issuer_id,
+        'password_used',
+        '임시 비밀번호가 사용되었습니다',
+        `${passwordInfo.target_nickname}님이 발급하신 비밀번호를 사용했습니다.`,
+        password
+      );
+    }
+  } catch (error) {
+    console.error('Error processing used password:', error);
+  }
+}
+
 const setupSerialPort = () => {
   try {
     serialPort = new SerialPort({
@@ -46,11 +95,11 @@ const setupSerialPort = () => {
 
       if (message.startsWith("PASSWORD_USED:")) {
         const password = message.split(":")[1];
-        handlePasswordUsed(password);
+        await handlePasswordUsed(password);
       } 
       else if (message.startsWith("ACCESS_DENIED:")) {
         const failedPassword = message.split(":")[1];
-        logFailedAttempt(failedPassword);
+        await logFailedAttempt(failedPassword);
       }
       else if (message.startsWith("NFC_PASSWORD:")) {
         const nfcPassword = message.split(":")[1];

@@ -245,13 +245,7 @@ const DeliveryFlow = () => {
                                             </div>
                                         </div>
 
-                                        <div className="bg-gray-50 rounded-xl p-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <Clock className="h-4 w-4 text-teal-400" />
-                                                <span className="text-sm text-gray-600">남은 시간</span>
-                                            </div>
-                                            <span className="text-sm font-medium">2일 23시간 52분</span>
-                                        </div>
+                                       
                                     </div>
                                 )}
                             </div>

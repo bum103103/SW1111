@@ -1,11 +1,41 @@
 // src/components/MyBaeminPage.jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Bell, Settings, MessageCircle, MapPin, ChevronRight, ShoppingBag, Home, Heart, Menu, Smile, User } from 'lucide-react';
 
 const MyBaeminPage = () => {
     const [showTutorial] = useState(true);
+    const [userInfo, setUserInfo] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        // location.state에서 사용자 정보 가져오기
+        if (location.state?.nickname) {
+            setUserInfo({
+                nickname: location.state.nickname,
+                username: location.state.username,
+                userId: location.state.userId
+            });
+        }
+    }, [location.state]);
+
+    // 권한 체크 및 리다이렉트
+    useEffect(() => {
+        if (!location.state) {
+            console.log('No user info provided, redirecting to selection page');
+            navigate('/', { replace: true });
+        }
+    }, [navigate, location.state]);
+
+    // 사용자 정보가 없는 경우 로딩 표시
+    if (!userInfo) {
+        return (
+            <div className="w-full h-screen flex items-center justify-center">
+                <div className="text-xl">로딩 중...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full max-w-md mx-auto h-screen bg-gray-50 flex flex-col">
@@ -14,7 +44,6 @@ const MyBaeminPage = () => {
                 <h1 className="text-xl font-bold">마이배민</h1>
                 <div className="flex items-center gap-4">
                     <Bell className="w-6 h-6" />
-                    
                     <div
                         className="relative cursor-pointer"
                         onClick={(e) => {
@@ -35,14 +64,14 @@ const MyBaeminPage = () => {
                 </div>
             </div>
 
-            {/* 프로필 섹션 */}
+            {/* 프로필 섹션 - 사용자 정보 표시 */}
             <div className="bg-white px-4 py-6 flex items-center gap-4">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <User className="w-10 h-10 text-gray-400" />
                 </div>
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-bold">작은거인</h2>
+                        <h2 className="text-lg font-bold">{userInfo.nickname}</h2>
                         <ChevronRight className="w-5 h-5 text-gray-400" />
                     </div>
                     <div className="flex gap-4 mt-2">

@@ -79,10 +79,10 @@ const DeliveryFlow = () => {
     const [swipeProgress, setSwipeProgress] = useState(0);
     const [doorLockPassword, setDoorLockPassword] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [showCallConfirm, setShowCallConfirm] = useState(false);
     const touchStartX = useRef(null);
     const swipingRef = useRef(false);
 
-    // localStorage에서 초기값을 가져오거나, 없으면 true로 설정
     const [isNFCEnabled, setIsNFCEnabled] = useState(
         JSON.parse(localStorage.getItem('isNFCEnabled') ?? 'true')
     );
@@ -90,23 +90,20 @@ const DeliveryFlow = () => {
         JSON.parse(localStorage.getItem('isBluetoothEnabled') ?? 'true')
     );
 
-    // localStorage의 변화를 감지하기 위한 effect
     useEffect(() => {
         const handleStorageChange = () => {
             setIsNFCEnabled(JSON.parse(localStorage.getItem('isNFCEnabled') ?? 'true'));
             setIsBluetoothEnabled(JSON.parse(localStorage.getItem('isBluetoothEnabled') ?? 'true'));
         };
 
-        // storage 이벤트 리스너 추가
         window.addEventListener('storage', handleStorageChange);
-
-        // 컴포넌트가 마운트될 때마다 최신값으로 업데이트
         handleStorageChange();
 
         return () => {
             window.removeEventListener('storage', handleStorageChange);
         };
     }, []);
+
     useEffect(() => {
         const fetchDoorLockPassword = async () => {
             try {
@@ -231,8 +228,7 @@ const DeliveryFlow = () => {
                                 {isDoorLockExpanded && (
                                     <div className="mt-4 space-y-4">
                                         <div className="grid grid-cols-2 gap-3">
-                                            <div className={`rounded-xl p-4 text-center flex flex-col items-center transition-all duration-300 ${isNFCEnabled ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'
-                                                }`}>
+                                            <div className={`rounded-xl p-4 text-center flex flex-col items-center transition-all duration-300 ${isNFCEnabled ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
                                                 <Smartphone className="h-6 w-6 mb-2" />
                                                 <div className="font-medium">NFC</div>
                                                 <div className="text-xs">
@@ -240,8 +236,7 @@ const DeliveryFlow = () => {
                                                 </div>
                                             </div>
 
-                                            <div className={`rounded-xl p-4 text-center flex flex-col items-center transition-all duration-300 ${isBluetoothEnabled ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'
-                                                }`}>
+                                            <div className={`rounded-xl p-4 text-center flex flex-col items-center transition-all duration-300 ${isBluetoothEnabled ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
                                                 <Bluetooth className="h-6 w-6 mb-2" />
                                                 <div className="font-medium">블루투스</div>
                                                 <div className="text-xs">
@@ -270,7 +265,10 @@ const DeliveryFlow = () => {
                                 )}
                             </div>
 
-                            <div className="mt-4 flex items-center justify-center gap-2 p-3 border rounded-xl">
+                            <div
+                                className="mt-4 flex items-center justify-center gap-2 p-3 border rounded-xl cursor-pointer"
+                                onClick={() => setShowCallConfirm(true)}
+                            >
                                 <Phone className="h-5 w-5 text-gray-600" />
                                 <span className="text-gray-600">파트너 지원센터와 전화</span>
                             </div>
@@ -287,7 +285,6 @@ const DeliveryFlow = () => {
                         </div>
                     </div>
                 )}
-
                 {/* 스와이프 버튼 */}
                 {step === 1 && (
                     <div
@@ -364,9 +361,34 @@ const DeliveryFlow = () => {
                         </div>
                     </div>
                 )}
+
+                {/* 전화 연결 확인 모달 */}
+                {showCallConfirm && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-lg p-6 m-4 max-w-sm w-full">
+                            <h3 className="text-lg font-medium mb-4">전화 연결</h3>
+                            <p className="text-gray-600 mb-6">파트너 지원센터로 연결하시겠습니까?</p>
+                            <div className="flex justify-end gap-4">
+                                <button
+                                    className="px-4 py-2 text-gray-500"
+                                    onClick={() => setShowCallConfirm(false)}
+                                >
+                                    취소
+                                </button>
+                                <a
+                                    href="tel:01071552479"
+                                    className="px-4 py-2 bg-green-500 text-white rounded-lg"
+                                    onClick={() => setShowCallConfirm(false)}
+                                >
+                                    연결
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
-export default DeliveryFlow;
+export default DeliveryFlow; 

@@ -22,6 +22,12 @@ export default defineConfig(({ mode }) => ({
         target: 'https://localhost:5000',
         changeOrigin: true,
         secure: false,
+      },
+      '/ws': {  // WebSocket 프록시 추가
+        target: 'wss://localhost:5000',
+        ws: true,
+        changeOrigin: true,
+        secure: false
       }
     }
   },

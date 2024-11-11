@@ -115,35 +115,7 @@ const DoorSettingsPage = () => {
         </div>
       </div>
 
-      {/* 이력 조회 섹션 */}
-      <div className="mt-4">
-        <div className="px-4 py-2 text-sm text-gray-500">이력 조회</div>
-        <div className="bg-white">
-          <div 
-            className="px-4 py-4 flex justify-between items-center cursor-pointer"
-            onClick={() => navigate('/access-history', {
-              state: {
-                userId: userInfo?.userId,
-                username: userInfo?.username,
-                nickname: userInfo?.nickname
-              }
-            })}
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-gray-50 rounded-lg">
-                <Settings className="h-5 w-5 text-gray-500" />
-              </div>
-              <div>
-                <div className="font-medium">출입 기록</div>
-                <div className="text-sm text-gray-500">
-                  도어락 사용 이력 조회
-                </div>
-              </div>
-            </div>
-            <ChevronRight className="w-6 h-6 text-gray-400" />
-          </div>
-        </div>
-      </div>
+    
     </div>
   );
 };

@@ -13,6 +13,10 @@ Adafruit_PN532 nfc(IRQ_PIN, RESET_PIN);
 uint8_t keyA[6] = {0xD3, 0xF7, 0xD3, 0xF7, 0xD3, 0xF7};
 bool nfcAvailable = false;  // NFC 사용 가능 여부 플래그
 
+// NFC 체크 타이밍 제어를 위한 변수
+unsigned long lastNFCCheck = 0;
+const unsigned long NFC_CHECK_INTERVAL = 100; // 100ms 간격으로 NFC 체크
+
 // 키패드 설정
 const byte ROWS = 4;
 const byte COLS = 4;
@@ -66,10 +70,17 @@ void setup() {
 void checkNFCPassword() {
   if (!nfcAvailable) return;  // NFC 모듈이 없으면 건너뜀
   
+  // 현재 시간이 마지막 체크 시간으로부터 일정 간격이 지났는지 확인
+  if (millis() - lastNFCCheck < NFC_CHECK_INTERVAL) {
+    return;
+  }
+  lastNFCCheck = millis();
+  
   uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };
   uint8_t uidLength;
   
-  if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength)) {
+  // non-blocking 방식으로 NFC 카드 감지 (50ms timeout)
+  if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 50)) {
     uint8_t data[16];
     String nfcData = "";
     
@@ -91,11 +102,10 @@ void checkNFCPassword() {
           lcd.print("Reading NFC...");
           lcd.setCursor(0, 1);
           lcd.print("Wait...");
-          delay(1000);
+          delay(500); // 딜레이 시간 단축
         }
       }
     }
-    delay(500);
   }
 }
 
@@ -111,6 +121,7 @@ void handleKeypadPassword(String password) {
         accessGranted = true;
         usedPassword = tempPasswords[i];
         
+        // 사용된 임시 비밀번호 제거
         for (int j = i; j < tempPasswordCount - 1; j++) {
           tempPasswords[j] = tempPasswords[j + 1];
         }
@@ -134,7 +145,7 @@ void handleKeypadPassword(String password) {
     Serial.println("ACCESS_DENIED:" + password);
     blinkLED(1);
   }
-  delay(1500);
+  delay(1000); // 딜레이 시간 단축
   
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -165,7 +176,7 @@ void handleSerialCommands() {
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("New Pass Added!");
-          delay(1000);
+          delay(500); // 딜레이 시간 단축
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Ready...");
@@ -198,7 +209,7 @@ void handleSerialCommands() {
         lcd.print("Invalid NFC");
         blinkLED(1);
       }
-      delay(1500);
+      delay(1000); // 딜레이 시간 단축
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Ready...");
@@ -220,7 +231,7 @@ void loop() {
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Input Cleared");
-      delay(500);
+      delay(200); // 딜레이 시간 단축
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Ready...");
@@ -233,7 +244,7 @@ void loop() {
     }
   }
 
-  // NFC 모듈이 있을 때만 NFC 체크
+  // NFC 체크 (non-blocking)
   if (nfcAvailable) {
     checkNFCPassword();
   }

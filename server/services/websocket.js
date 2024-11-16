@@ -30,23 +30,18 @@ class WebSocketService {
 
         // 클라이언트 맵에 저장
         this.clients.set(userId, ws);
-        console.log(`WebSocket client connected: User ID ${userId}`);
 
         // 연결 성공 로그만 남기고 메시지는 보내지 않음
-        console.log('WebSocket connection established');
 
         ws.on('close', () => {
-          console.log(`WebSocket client disconnected: User ID ${userId}`);
           this.clients.delete(userId);
         });
 
         ws.on('error', (error) => {
-          console.error(`WebSocket error for User ID ${userId}:`, error);
           this.clients.delete(userId);
         });
 
       } catch (error) {
-        console.error('WebSocket connection error:', error);
         ws.close();
       }
     });

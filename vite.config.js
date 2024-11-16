@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import fs from 'fs'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: {
@@ -11,19 +12,27 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    strictPort: false,
     host: true,
-    middleware: [
-      (req, res, next) => {
-        // SPA의 client-side routing을 위한 설정
-        if (req.url.includes('/B/')) {
-          req.url = '/'
-        }
-        next()
+    https: {
+      key: fs.readFileSync('./certificates/localhost-key.pem'),
+      cert: fs.readFileSync('./certificates/localhost.pem'),
+    },
+    proxy: {
+      '/api': {
+        target: 'https://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/ws': {  // WebSocket 프록시 추가
+        target: 'wss://localhost:5000',
+        ws: true,
+        changeOrigin: true,
+        secure: false
       }
-    ]
+    }
   },
-  preview: {
-    port: 5173,
+  build: {
+    outDir: 'dist',
+    sourcemap: false
   }
-})
+}))

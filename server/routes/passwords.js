@@ -81,7 +81,7 @@ async function handlePasswordUsed(password) {
 const setupSerialPort = () => {
   try {
     serialPort = new SerialPort({
-      path: 'COM6',
+      path: 'COM5',
       baudRate: 9600,
       autoOpen: false,
       lock: false

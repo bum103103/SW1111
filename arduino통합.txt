@@ -92,6 +92,13 @@ void openDoor() {
 void closeDoor() {
   doorServo.write(DOOR_CLOSE_ANGLE);
   isDoorOpen = false;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Door Closed!");    // "문이 닫혔습니다!"
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ready...");        // "대기중..."
 }
 
 // 문 상태 체크 함수
@@ -170,13 +177,13 @@ void handleKeypadPassword(String password) {
   lcd.clear();
   lcd.setCursor(0, 0);
   if (accessGranted) {
-    lcd.print("Access Granted!");
+    lcd.print("Door Opened!");
     lcd.setCursor(0, 1);
     lcd.print("Via Keypad");
     blinkLED(2);
     openDoor();  // 문 열기
   } else {
-    lcd.print("Access Denied!");
+    lcd.print("Wrong Password!");
     Serial.println("ACCESS_DENIED:" + password);
     blinkLED(1);
   }
@@ -234,13 +241,13 @@ void handleSerialCommands() {
       lcd.clear();
       lcd.setCursor(0, 0);
       if (result == "SUCCESS") {
-        lcd.print("Access Granted!");
+        lcd.print("Door Opened!");
         lcd.setCursor(0, 1);
         lcd.print("Via NFC");
         blinkLED(2);
         openDoor();  // 문 열기
       } else {
-        lcd.print("Access Denied!");
+        lcd.print("Wrong Password!");
         lcd.setCursor(0, 1);
         lcd.print("Invalid NFC");
         blinkLED(1);

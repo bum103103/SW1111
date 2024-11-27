@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 const ReceivePasswordScreen = () => {
   const [passwords, setPasswords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [nfcStatus, setNfcStatus] = useState('');
 
   useEffect(() => {
     fetchPasswords();
@@ -26,7 +27,6 @@ const ReceivePasswordScreen = () => {
     }
   };
 
-  // NFC 쓰기 기능
   const writeToNFC = async (password) => {
     if (!('NDEFReader' in window)) {
       alert('이 브라우저는 NFC를 지원하지 않습니다.');
@@ -34,13 +34,26 @@ const ReceivePasswordScreen = () => {
     }
 
     try {
+      setNfcStatus('NFC 태그를 기기에 가까이 대주세요.');
       const ndef = new NDEFReader();
-      await ndef.write(password);
-      alert('NFC 태그에 가까이 대주세요.');
-      console.log(`NFC에 비밀번호 "${password}" 기록 성공`);
+      await ndef.write({
+        records: [{ recordType: "text", data: password }]
+      });
+      setNfcStatus(`NFC 태그에 비밀번호가 성공적으로 기록되었습니다.`);
+
+      // 3초 후 상태 메시지 제거
+      setTimeout(() => {
+        setNfcStatus('');
+      }, 3000);
+
     } catch (error) {
       console.error('NFC 쓰기 오류:', error);
-      alert('NFC 쓰기에 실패했습니다.');
+      setNfcStatus('NFC 쓰기에 실패했습니다.');
+      
+      // 3초 후 에러 메시지 제거
+      setTimeout(() => {
+        setNfcStatus('');
+      }, 3000);
     }
   };
 
@@ -57,6 +70,12 @@ const ReceivePasswordScreen = () => {
       </div>
 
       <div className="flex-1 p-4">
+        {nfcStatus && (
+          <div className="mb-4 p-4 bg-blue-50 text-blue-700 rounded-lg">
+            {nfcStatus}
+          </div>
+        )}
+        
         {loading ? (
           <div className="text-center text-gray-500">로딩 중...</div>
         ) : passwords.length > 0 ? (
@@ -77,12 +96,14 @@ const ReceivePasswordScreen = () => {
                 <div className="text-xs text-gray-400">
                   발급일시: {new Date(item.created_at).toLocaleString()}
                 </div>
-                <button
-                  onClick={() => writeToNFC(item.password)}
-                  className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  NFC로 전송하기
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => writeToNFC(item.password)}
+                    className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    NFC에 저장하기
+                  </button>
+                </div>
               </div>
             ))}
           </div>

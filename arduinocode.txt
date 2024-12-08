@@ -1,9 +1,34 @@
 #include <Keypad.h>
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
+#include <Adafruit_PN532.h>
+#include <Stepper.h>
 
+// LCD 설정
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+// NFC 설정
+#define IRQ_PIN 11
+#define RESET_PIN 12
+Adafruit_PN532 nfc(IRQ_PIN, RESET_PIN);
+uint8_t keyA[6] = {0xD3, 0xF7, 0xD3, 0xF7, 0xD3, 0xF7};
+bool nfcAvailable = false;
+
+// NFC 체크 타이밍 제어를 위한 변수
+unsigned long lastNFCCheck = 0;
+const unsigned long NFC_CHECK_INTERVAL = 100; // 100ms 간격으로 NFC 체크
+
+// 스텝 모터 설정
+#define STEPS_PER_REVOLUTION 2048
+Stepper myStepper(STEPS_PER_REVOLUTION, A0, A2, A1, A3);
+const int stepsFor90Degrees = STEPS_PER_REVOLUTION / 4; // 90도 회전 스텝
+
+// 도어 설정
+const unsigned long DOOR_OPEN_TIME = 5000; // 5초
+unsigned long doorOpenedTime = 0;
+bool isDoorOpen = false;
+
+// 키패드 설정
 const byte ROWS = 4;
 const byte COLS = 4;
 char keys[ROWS][COLS] = {
@@ -12,14 +37,12 @@ char keys[ROWS][COLS] = {
   {'7','8','9','C'},
   {'*','0','#','D'}
 };
-
 byte rowPins[ROWS] = {9, 8, 7, 6};
 byte colPins[COLS] = {5, 4, 3, 2};
-
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 String masterPassword = "1234";
-String tempPasswords[10]; // 최대 10개의 임시 비밀번호 저장
+String tempPasswords[10];
 int tempPasswordCount = 0;
 String inputPassword = "";
 const int LED_PIN = 13;
@@ -28,22 +51,147 @@ void setup() {
   Serial.begin(9600);
   pinMode(LED_PIN, OUTPUT);
   
+  // 스텝모터 초기화
+  myStepper.setSpeed(10); // 모터 속도 설정 (10rpm)
+  
+  // LCD 초기화
   lcd.init();
   lcd.backlight();
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Password:");
+  lcd.print("Initializing...");
   
-  Serial.println("Arduino started and ready!");
+  // NFC 초기화
+  nfc.begin();
+  if (nfc.getFirmwareVersion()) {
+    nfcAvailable = true;
+    nfc.SAMConfig();
+    lcd.setCursor(0, 1);
+    lcd.print("NFC Ready");
+  } else {
+    lcd.setCursor(0, 1);
+    lcd.print("No NFC Module");
+  }
+  
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ready...");
+  
+  Serial.println("System ready!");
 }
 
-void clearInputDisplay() {
-  lcd.setCursor(0, 1);
-  lcd.print("                ");
-  lcd.setCursor(0, 1);
+// 문 열기 함수
+void openDoor() {
+  Serial.println("문이 열립니다: 스텝 모터 동작 시작");
+  myStepper.step(-stepsFor90Degrees); // 반시계 방향으로 90도 회전
+  isDoorOpen = true;
+  doorOpenedTime = millis();
 }
 
-void loop() {
+// 문 닫기 함수
+void closeDoor() {
+  Serial.println("문이 닫힙니다: 스텝 모터 동작 시작");
+  myStepper.step(stepsFor90Degrees); // 시계 방향으로 90도 복귀
+  isDoorOpen = false;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Door Closed!");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ready...");
+}
+
+// 문 상태 체크 함수
+void checkDoorStatus() {
+  if (isDoorOpen && (millis() - doorOpenedTime >= DOOR_OPEN_TIME)) {
+    closeDoor();
+  }
+}
+
+void checkNFCPassword() {
+  if (!nfcAvailable) return;
+  
+  if (millis() - lastNFCCheck < NFC_CHECK_INTERVAL) {
+    return;
+  }
+  lastNFCCheck = millis();
+  
+  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };
+  uint8_t uidLength;
+  
+  if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 50)) {
+    uint8_t data[16];
+    String nfcData = "";
+    
+    if (nfc.mifareclassic_AuthenticateBlock(uid, uidLength, 4, 0, keyA)) {
+      if (nfc.mifareclassic_ReadDataBlock(4, data)) {
+        for (int i = 0; i < 16; i++) {
+          if (data[i] >= '0' && data[i] <= '9') {
+            nfcData += (char)data[i];
+          }
+        }
+        
+        if (nfcData.length() == 6) {
+          Serial.println("NFC_PASSWORD:" + nfcData);
+          
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Reading NFC...");
+          lcd.setCursor(0, 1);
+          lcd.print("Wait...");
+          delay(500);
+        }
+      }
+    }
+  }
+}
+
+void handleKeypadPassword(String password) {
+  bool accessGranted = false;
+  String usedPassword = "";
+  
+  if (password == masterPassword) {
+    accessGranted = true;
+  } else {
+    for (int i = 0; i < tempPasswordCount; i++) {
+      if (password == tempPasswords[i]) {
+        accessGranted = true;
+        usedPassword = tempPasswords[i];
+        
+        for (int j = i; j < tempPasswordCount - 1; j++) {
+          tempPasswords[j] = tempPasswords[j + 1];
+        }
+        tempPasswordCount--;
+
+        Serial.println("PASSWORD_USED:" + usedPassword);
+        break;
+      }
+    }
+  }
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  if (accessGranted) {
+    lcd.print("Door Opened!");
+    lcd.setCursor(0, 1);
+    lcd.print("Via Keypad");
+    blinkLED(2);
+    openDoor();
+  } else {
+    lcd.print("Wrong Password!");
+    Serial.println("ACCESS_DENIED:" + password);
+    blinkLED(1);
+  }
+  delay(1000);
+  
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ready...");
+}
+
+void handleSerialCommands() {
   if (Serial.available() > 0) {
     String received = Serial.readStringUntil('\n');
     received.trim();
@@ -51,7 +199,6 @@ void loop() {
     if (received.startsWith("SET_PASSWORD:")) {
       String newPassword = received.substring(13);
       if (newPassword.length() == 6) {
-        // 비밀번호 배열에 추가
         bool alreadyExists = false;
         for (int i = 0; i < tempPasswordCount; i++) {
           if (tempPasswords[i] == newPassword) {
@@ -67,24 +214,17 @@ void loop() {
           
           lcd.clear();
           lcd.setCursor(0, 0);
-          lcd.print("New Pass Set!");
-          lcd.setCursor(0, 1);
-          lcd.print(newPassword);
-          delay(1000);
+          lcd.print("New Pass Added!");
+          delay(500);
           lcd.clear();
           lcd.setCursor(0, 0);
-          lcd.print("Password:");
-          clearInputDisplay();
-          
-          blinkLED(3);
+          lcd.print("Ready...");
         }
       }
-    }else if (received.startsWith("EXPIRE_PASSWORD:")) {
+    } else if (received.startsWith("EXPIRE_PASSWORD:")) {
       String expiredPassword = received.substring(16);
-      // 만료된 비밀번호 제거
       for (int i = 0; i < tempPasswordCount; i++) {
         if (tempPasswords[i] == expiredPassword) {
-          // 해당 비밀번호 제거 및 배열 정리
           for (int j = i; j < tempPasswordCount - 1; j++) {
             tempPasswords[j] = tempPasswords[j + 1];
           }
@@ -93,77 +233,61 @@ void loop() {
           break;
         }
       }
+    } else if (received.startsWith("NFC_RESULT:")) {
+      String result = received.substring(11);
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      if (result == "SUCCESS") {
+        lcd.print("Door Opened!");
+        lcd.setCursor(0, 1);
+        lcd.print("Via NFC");
+        blinkLED(2);
+        openDoor();
+      } else {
+        lcd.print("Wrong Password!");
+        lcd.setCursor(0, 1);
+        lcd.print("Invalid NFC");
+        blinkLED(1);
+      }
+      delay(1000);
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Ready...");
     }
   }
+}
 
-  char key = keypad.getKey();
+void loop() {
+  handleSerialCommands();
   
+  char key = keypad.getKey();
   if (key) {
     if (key == 'D') {
-      bool accessGranted = false;
-      String usedPassword = "";
-      
-      // 마스터 비밀번호 확인
-      if (inputPassword == masterPassword) {
-        accessGranted = true;
-      } else {
-        // 임시 비밀번호 확인
-        for (int i = 0; i < tempPasswordCount; i++) {
-          if (inputPassword == tempPasswords[i]) {
-            accessGranted = true;
-            usedPassword = tempPasswords[i];
-            
-            // 사용된 비밀번호 제거 및 배열 정리
-            for (int j = i; j < tempPasswordCount - 1; j++) {
-              tempPasswords[j] = tempPasswords[j + 1];
-            }
-            tempPasswordCount--;
-
-            // 서버에 비밀번호 사용 알림
-            Serial.println("PASSWORD_USED:" + usedPassword);
-            break;
-          }
-        }
-      }
-      
-      if (accessGranted) {
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Door Opened!!");
-        blinkLED(2);
-        delay(1500);
-      } else {
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Access Denied!");
-        Serial.println("ACCESS_DENIED:" + inputPassword);
-        blinkLED(1);
-        delay(1500);
-      }
-      
+      handleKeypadPassword(inputPassword);
+      inputPassword = "";
+    } else if (key == 'C') {
       inputPassword = "";
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("Password:");
-      clearInputDisplay();
-    
-      
-    } else if (key == 'C') {
-      inputPassword = "";
-      Serial.println("Input cleared");
-      clearInputDisplay();
-    } else if (key == 'A' || key == 'B' || key == '#' || key == '*') {
-      // 무시
-    } else {
+      lcd.print("Input Cleared");
+      delay(200);
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Ready...");
+    } else if (key != 'A' && key != 'B' && key != '#' && key != '*') {
       inputPassword += key;
-      Serial.print("Current input: ");
-      Serial.println(inputPassword);
-      
-      clearInputDisplay();
-      lcd.setCursor(0, 1);
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Input: ");
       lcd.print(inputPassword);
     }
   }
+
+  if (nfcAvailable) {
+    checkNFCPassword();
+  }
+
+  checkDoorStatus();
 }
 
 void blinkLED(int times) {
